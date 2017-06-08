@@ -2,6 +2,8 @@
 
 In this example we take our java application and put it into a container for deployment on EC2 Container Service.
 
+![alt text](https://github.com/awslabs/aws-java-microservice-refarch/blob/master/images/PetClinicApp.png)
+
 ### Why containers?
 
 __Improved Pipeline__: The container also allows an engineering organization to create a standard pipeline for the application lifecycle. For example:
