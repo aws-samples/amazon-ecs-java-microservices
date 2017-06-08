@@ -8,6 +8,8 @@ Running a single container on a single server is easy. ECS is a cluster manageme
 This is a reference architecture that shows the evolution of a Java application from a monolithic application that is deployed directly onto instances with no containerization or orchestration, to a containerized microservices architecture orchestrated using Amazon EC2 Container Service.
 
 We will take the [Spring Pet Clinic](https://github.com/spring-projects/spring-petclinic) as the base to extend from.
+A high level architecture of PetClinic app is as follows,
+[!alt text](https://github.com/awslabs/amazon-ecs-java-microservices/blob/master/images/PetClinicApp.png)
 
 1. [Part One: Moving existing Java Spring application to a container deployed using ECS](https://github.com/awslabs/aws-java-microservice-refarch/blob/master/1_ECS_Java_Spring_PetClinic)
 2. [Part Two: Breaking the monolith apart into microservices on ECS](https://github.com/awslabs/aws-java-microservice-refarch/tree/master/2_ECS_Java_Spring_PetClinic_Microservices)
