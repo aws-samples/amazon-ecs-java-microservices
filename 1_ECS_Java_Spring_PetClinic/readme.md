@@ -2,8 +2,6 @@
 
 In this example we take our node application and put it into a container for deployment on EC2 Container Service.
 
-![Reference architecture of the containerized monolith](../images/monolithic-containers.png)
-
 ### Why containers?
 
 __Improved Pipeline__: The container also allows an engineering organization to create a standard pipeline for the application lifecycle. For example:
@@ -43,6 +41,11 @@ You will need to have the latest version of the AWS CLI and maven installed befo
 
 1. Clone this repository - ```git clone <>```
 2. Run python ```setup.py -m setup -r <your region>```
+
+## Test 
+
+1. ```curl <your endpoint from output above>\<endpoint>```
+endpoints supported are \, \pet, \vet, \owner, \visit
 
 ## Clean up
 
