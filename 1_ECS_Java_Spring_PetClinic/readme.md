@@ -23,7 +23,7 @@ EC2 Container Service provides orchestration for your containers. It automates t
 
 To transform your existing Java Spring application into container you must compile, package, build a container image with the application package, and execution instruction. In addition, in order to run your container in the container cluster, it must be stored in a scaleable container registry. Amazon EC2 Container Registry (ECR) is a fully-managed  [Docker](https://aws.amazon.com/docker/) container registry that makes it easy for developers to store, manage, and deploy Docker container images. Amazon ECR is integrated with Amazon EC2 Container Service (ECS), simplifying your development to production workflow.
 
-![alt text](https://github.com/awslabs/aws-java-microservice-refarch/blob/master/images/PetClinicApp.png)
+![alt text](https://github.com/awslabs/amazon-ecs-java-microservices/blob/master/images/ecs-spring-monolithic-containers.png)
 
 
 1.  __Dependency Injection using Spring:__ We have modified the code to be separate interfaces into pet, owner, visit, etc as a first step towards microservice. We use Spring framework Repository annotation to inject the dependency in the specific path.  
