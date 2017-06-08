@@ -26,11 +26,11 @@ To transform your existing Java Spring application into container you must compi
 ![alt text](https://github.com/awslabs/aws-java-microservice-refarch/blob/master/images/PetClinicApp.png)
 
 
-1. __Single process instead of `cluster`.__ The first and biggest change involved with containerizing this application is getting rid of `cluster`. With docker containers the goal is to run a single process per container, rather than a cluster of processes.
+1.  __Dependency Injection using Spring:__ We have modified the code to be separate interfaces into pet, owner, visit, etc as a first step towards microservice. We use Spring framework Repository annotation to inject the dependency in the specific path.  
+   
+2. __Create `Dockerfile`:__ This file is basically a build script that creates the container. The base container that the dockerfile starts from contains a specific version of java. We use the [docker-spotify](https://github.com/spotify/docker-maven-plugin) plugin to run the maven build and create artifacts . The result is a container image that is a reliable unit of deployment. The container can be run locally, or run on a remote server. It will run the same in both places. 
 
-   The reason for this change is that a lighweight container with a single process in it allows for greater granularity and flexibility in container placement onto infrastructure. A large container that has four processes in it and requires four cores of CPU power can only be run on an instance of a particular size. However by breaking that up into four containers that each have a single process in them we can now make use of two smaller instances that will each run two containers, or even four tiny instances that will each run a single container. Or we could go the opposite direction and easily run 64 of these small containers on a single massive instance.
-
-2. __Create `Dockerfile`:__ This file is basically a build script that creates the container. The base container that the dockerfile starts from contains a specific version of java. We use the [docker-spotify](https://github.com/spotify/docker-maven-plugin) plugin to run the maven build . The result is a container image that is a reliable unit of deployment. The container can be run locally, or run on a remote server. It will run the same in both places.
+3. __Provision `AWS resources`:__ the setup.py provisions the AWS resources such as ECS, ECR, IAM Roles, ALB, RDS MySQL, AWS networking resources.
 
 ## Prerequisites
 
