@@ -2,8 +2,6 @@
 
 In this example we take our java application and put it into a container for deployment on EC2 Container Service.
 
-![alt text](https://github.com/awslabs/aws-java-microservice-refarch/blob/master/images/PetClinicApp.png)
-
 ### Why containers?
 
 __Improved Pipeline__: The container also allows an engineering organization to create a standard pipeline for the application lifecycle. For example:
@@ -24,6 +22,8 @@ EC2 Container Service provides orchestration for your containers. It automates t
 ## Application Changes for Docker
 
 To transform your existing Java Spring application into container you must compile, package, build a container image with the application package, and execution instruction. In addition, in order to run your container in the container cluster, it must be stored in a scaleable container registry. Amazon EC2 Container Registry (ECR) is a fully-managed  [Docker](https://aws.amazon.com/docker/) container registry that makes it easy for developers to store, manage, and deploy Docker container images. Amazon ECR is integrated with Amazon EC2 Container Service (ECS), simplifying your development to production workflow.
+
+![alt text](https://github.com/awslabs/aws-java-microservice-refarch/blob/master/images/PetClinicApp.png)
 
 
 1. __Single process instead of `cluster`.__ The first and biggest change involved with containerizing this application is getting rid of `cluster`. With docker containers the goal is to run a single process per container, rather than a cluster of processes.
