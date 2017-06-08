@@ -1,0 +1,14 @@
+org/springframework/samples/petclinic/model/Specialty.class
+org/springframework/samples/petclinic/model/Pet.class
+org/springframework/samples/petclinic/owner/OwnerController.class
+org/springframework/samples/petclinic/owner/OwnerRepository.class
+org/springframework/samples/petclinic/model/Person.class
+org/springframework/samples/petclinic/model/Visit.class
+org/springframework/samples/petclinic/model/Owner.class
+org/springframework/samples/petclinic/model/Vets.class
+org/springframework/samples/petclinic/model/PetType.class
+org/springframework/samples/petclinic/model/Vet.class
+org/springframework/samples/petclinic/model/NamedEntity.class
+org/springframework/samples/petclinic/model/BaseEntity.class
+org/springframework/samples/petclinic/model/PetValidator.class
+org/springframework/samples/petclinic/OwnerApplication.class

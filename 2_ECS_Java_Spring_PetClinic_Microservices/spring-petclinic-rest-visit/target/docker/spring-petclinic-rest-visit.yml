@@ -1,0 +1,8 @@
+version: '2'
+services:
+  spring-petclinic-rest-visit:
+    image: 730329488449.dkr.ecr.us-west-2.amazonaws.com/spring-petclinic-rest-visit
+    cpu_shares: 100
+    mem_limit: 524288000
+    ports:
+      - "8090:8080"
