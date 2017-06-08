@@ -54,4 +54,4 @@ supported endpoints  are \, \pet, \vet, \owner, \visit
 
 ### NextStep
 
-Lets break this app into microservices: https://code.amazon.com/packages/ECS_Java_Spring_PetClinic_Microservices/trees/heads/mainline
+[Lets break this app into microservices] (https://github.com/awslabs/aws-java-microservice-refarch/tree/master/2_ECS_Java_Spring_PetClinic_Microservices)
