@@ -44,8 +44,9 @@ You will need to have the latest version of the AWS CLI and maven installed befo
 
 ## Test 
 
-1. ```curl <your endpoint from output above>\<endpoint>```
-endpoints supported are \, \pet, \vet, \owner, \visit
+1. ```curl <your endpoint from output above>\<endpoint> ```
+
+supported endpoints  are \, \pet, \vet, \owner, \visit
 
 ## Clean up
 
