@@ -58,11 +58,32 @@
   "Description": "AWS CloudFormation template to create resources required to run tasks on an ECS cluster.",
   "Mappings": {
     "VpcCidrs": {
-      "pubsubnet1": {
+      "pubelbsubnet1": {
         "cidr": "10.0.0.0/24"
       },
-      "pubsubnet2": {
+      "pubelbsubnet2": {
         "cidr": "10.0.1.0/24"
+      },
+      "pubelbsubnet3": {
+        "cidr": "10.0.2.0/24"
+      },
+      "privappsubnet1": {
+        "cidr": "10.0.10.0/24"
+      },
+      "privappsubnet2": {
+        "cidr": "10.0.11.0/24"
+      },
+      "privappsubnet3": {
+        "cidr": "10.0.12.0/24"
+      },
+      "privdatasubnet1": {
+        "cidr": "10.0.20.0/24"
+      },
+      "privdatasubnet2": {
+        "cidr": "10.0.21.0/24"
+      },
+      "privdatasubnet3": {
+        "cidr": "10.0.22.0/24"
       },
       "vpc": {
         "cidr": "10.0.0.0/16"
@@ -199,7 +220,9 @@
         },
         "DBInstanceClass": "db.t2.medium",
         "AllocatedStorage": "5",
-        "DBSubnetGroupName" : { "Ref" : "PetClinicSubnetGroup" },
+        "DBSubnetGroupName": {
+          "Ref": "PetClinicSubnetGroup"
+        },
         "MasterUserPassword": {
           "Ref": "DBPassword"
         },
@@ -213,11 +236,21 @@
         ]
       }
     },
-    "PetClinicSubnetGroup" : {
-      "Type" : "AWS::RDS::DBSubnetGroup",
-      "Properties" : {
-        "DBSubnetGroupDescription" : "Subnets available for the RDS DB Instance",
-        "SubnetIds" : [ { "Ref" : "PubSubnetAz1" }, { "Ref" : "PubSubnetAz2" } ]
+    "PetClinicSubnetGroup": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupDescription": "Subnets available for the RDS DB Instance",
+        "SubnetIds": [
+          {
+            "Ref": "PrivDataSubnetAz1"
+          },
+          {
+            "Ref": "PrivDataSubnetAz2"
+          },
+          {
+            "Ref": "PrivDataSubnetAz3"
+          }
+        ]
       }
     },
     "AttachGateway": {
@@ -286,10 +319,13 @@
                   ",",
                   [
                     {
-                      "Ref": "PubSubnetAz1"
+                      "Ref": "PrivAppSubnetAz1"
                     },
                     {
-                      "Ref": "PubSubnetAz2"
+                      "Ref": "PrivAppSubnetAz2"
+                    },
+                    {
+                      "Ref": "PrivAppSubnetAz3"
                     }
                   ]
                 ]
@@ -566,35 +602,84 @@
         "RetentionInDays": 14
       }
     },
-    "InternetGateway": {
-      "Condition": "CreateVpcResources",
-      "Type": "AWS::EC2::InternetGateway"
+    "NAT": {
+      "Type": "AWS::EC2::NatGateway",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "EIP",
+            "AllocationId"
+          ]
+        },
+        "SubnetId": {
+          "Ref": "PubELBSubnetAz1"
+        }
+      }
     },
-    "PubSubnet1RouteTableAssociation": {
+    "EIP": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
+    "PrivateDataRouteTable": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        }
+      },
+      "Type": "AWS::EC2::RouteTable"
+    },
+    "RoutePrivateData2Nat": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateDataRouteTable"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": {
+          "Ref": "NAT"
+        }
+      }
+    },
+    "PrivDataSubnet1RouteTableAssociation": {
       "Condition": "CreateVpcResources",
       "Properties": {
         "RouteTableId": {
-          "Ref": "RouteViaIgw"
+          "Ref": "PrivateDataRouteTable"
         },
         "SubnetId": {
-          "Ref": "PubSubnetAz1"
+          "Ref": "PrivDataSubnetAz1"
         }
       },
       "Type": "AWS::EC2::SubnetRouteTableAssociation"
     },
-    "PubSubnet2RouteTableAssociation": {
+    "PrivDataSubnet2RouteTableAssociation": {
       "Condition": "CreateVpcResources",
       "Properties": {
         "RouteTableId": {
-          "Ref": "RouteViaIgw"
+          "Ref": "PrivateDataRouteTable"
         },
         "SubnetId": {
-          "Ref": "PubSubnetAz2"
+          "Ref": "PrivDataSubnetAz2"
         }
       },
       "Type": "AWS::EC2::SubnetRouteTableAssociation"
     },
-    "PubSubnetAz1": {
+    "PrivAppSubnet3RouteTableAssociation": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateAppRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PrivAppSubnetAz3"
+        }
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation"
+    },
+    "PrivDataSubnetAz1": {
       "Condition": "CreateVpcResources",
       "Properties": {
         "AvailabilityZone": {
@@ -623,7 +708,7 @@
         "CidrBlock": {
           "Fn::FindInMap": [
             "VpcCidrs",
-            "pubsubnet1",
+            "privdatasubnet1",
             "cidr"
           ]
         },
@@ -633,7 +718,7 @@
       },
       "Type": "AWS::EC2::Subnet"
     },
-    "PubSubnetAz2": {
+    "PrivDataSubnetAz2": {
       "Condition": "CreateVpcResources",
       "Properties": {
         "AvailabilityZone": {
@@ -662,7 +747,374 @@
         "CidrBlock": {
           "Fn::FindInMap": [
             "VpcCidrs",
-            "pubsubnet2",
+            "privdatasubnet2",
+            "cidr"
+          ]
+        },
+        "VpcId": {
+          "Ref": "Vpc"
+        }
+      },
+      "Type": "AWS::EC2::Subnet"
+    },
+    "PrivDataSubnetAz3": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::If": [
+            "UseSpecifiedVpcAvailabilityZones",
+            {
+              "Fn::Select": [
+                "2",
+                {
+                  "Ref": "VpcAvailabilityZones"
+                }
+              ]
+            },
+            {
+              "Fn::Select": [
+                "2",
+                {
+                  "Fn::GetAZs": {
+                    "Ref": "AWS::Region"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "VpcCidrs",
+            "privdatasubnet3",
+            "cidr"
+          ]
+        },
+        "VpcId": {
+          "Ref": "Vpc"
+        }
+      },
+      "Type": "AWS::EC2::Subnet"
+    },
+    "PrivateAppRouteTable": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        }
+      },
+      "Type": "AWS::EC2::RouteTable"
+    },
+    "RoutePrivateApp2Nat": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateAppRouteTable"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": {
+          "Ref": "NAT"
+        }
+      }
+    },
+    "PrivAppSubnet1RouteTableAssociation": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateAppRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PrivAppSubnetAz1"
+        }
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation"
+    },
+    "PrivAppSubnet2RouteTableAssociation": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateAppRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PrivAppSubnetAz2"
+        }
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation"
+    },
+    "PrivAppSubnetAz1": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::If": [
+            "UseSpecifiedVpcAvailabilityZones",
+            {
+              "Fn::Select": [
+                "0",
+                {
+                  "Ref": "VpcAvailabilityZones"
+                }
+              ]
+            },
+            {
+              "Fn::Select": [
+                "0",
+                {
+                  "Fn::GetAZs": {
+                    "Ref": "AWS::Region"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "VpcCidrs",
+            "privappsubnet1",
+            "cidr"
+          ]
+        },
+        "VpcId": {
+          "Ref": "Vpc"
+        }
+      },
+      "Type": "AWS::EC2::Subnet"
+    },
+    "PrivAppSubnetAz2": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::If": [
+            "UseSpecifiedVpcAvailabilityZones",
+            {
+              "Fn::Select": [
+                "1",
+                {
+                  "Ref": "VpcAvailabilityZones"
+                }
+              ]
+            },
+            {
+              "Fn::Select": [
+                "1",
+                {
+                  "Fn::GetAZs": {
+                    "Ref": "AWS::Region"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "VpcCidrs",
+            "privappsubnet2",
+            "cidr"
+          ]
+        },
+        "VpcId": {
+          "Ref": "Vpc"
+        }
+      },
+      "Type": "AWS::EC2::Subnet"
+    },
+    "PrivAppSubnetAz3": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::If": [
+            "UseSpecifiedVpcAvailabilityZones",
+            {
+              "Fn::Select": [
+                "2",
+                {
+                  "Ref": "VpcAvailabilityZones"
+                }
+              ]
+            },
+            {
+              "Fn::Select": [
+                "2",
+                {
+                  "Fn::GetAZs": {
+                    "Ref": "AWS::Region"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "VpcCidrs",
+            "privappsubnet3",
+            "cidr"
+          ]
+        },
+        "VpcId": {
+          "Ref": "Vpc"
+        }
+      },
+      "Type": "AWS::EC2::Subnet"
+    },
+    "InternetGateway": {
+      "Condition": "CreateVpcResources",
+      "Type": "AWS::EC2::InternetGateway"
+    },
+    "PublicRouteTable": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "VpcId": {
+          "Ref": "Vpc"
+        }
+      },
+      "Type": "AWS::EC2::RouteTable"
+    },
+    "PubSubnet1RouteTableAssociation": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PubELBSubnetAz1"
+        }
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation"
+    },
+    "PubSubnet2RouteTableAssociation": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PubELBSubnetAz2"
+        }
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation"
+    },
+    "PubSubnet3RouteTableAssociation": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PublicRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PubELBSubnetAz3"
+        }
+      },
+      "Type": "AWS::EC2::SubnetRouteTableAssociation"
+    },
+    "PubELBSubnetAz1": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::If": [
+            "UseSpecifiedVpcAvailabilityZones",
+            {
+              "Fn::Select": [
+                "0",
+                {
+                  "Ref": "VpcAvailabilityZones"
+                }
+              ]
+            },
+            {
+              "Fn::Select": [
+                "0",
+                {
+                  "Fn::GetAZs": {
+                    "Ref": "AWS::Region"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "VpcCidrs",
+            "pubelbsubnet1",
+            "cidr"
+          ]
+        },
+        "VpcId": {
+          "Ref": "Vpc"
+        }
+      },
+      "Type": "AWS::EC2::Subnet"
+    },
+    "PubELBSubnetAz2": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::If": [
+            "UseSpecifiedVpcAvailabilityZones",
+            {
+              "Fn::Select": [
+                "1",
+                {
+                  "Ref": "VpcAvailabilityZones"
+                }
+              ]
+            },
+            {
+              "Fn::Select": [
+                "1",
+                {
+                  "Fn::GetAZs": {
+                    "Ref": "AWS::Region"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "VpcCidrs",
+            "pubelbsubnet2",
+            "cidr"
+          ]
+        },
+        "VpcId": {
+          "Ref": "Vpc"
+        }
+      },
+      "Type": "AWS::EC2::Subnet"
+    },
+    "PubELBSubnetAz3": {
+      "Condition": "CreateVpcResources",
+      "Properties": {
+        "AvailabilityZone": {
+          "Fn::If": [
+            "UseSpecifiedVpcAvailabilityZones",
+            {
+              "Fn::Select": [
+                "2",
+                {
+                  "Ref": "VpcAvailabilityZones"
+                }
+              ]
+            },
+            {
+              "Fn::Select": [
+                "2",
+                {
+                  "Fn::GetAZs": {
+                    "Ref": "AWS::Region"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "VpcCidrs",
+            "pubelbsubnet3",
             "cidr"
           ]
         },
@@ -681,19 +1133,10 @@
           "Ref": "InternetGateway"
         },
         "RouteTableId": {
-          "Ref": "RouteViaIgw"
+          "Ref": "PublicRouteTable"
         }
       },
       "Type": "AWS::EC2::Route"
-    },
-    "RouteViaIgw": {
-      "Condition": "CreateVpcResources",
-      "Properties": {
-        "VpcId": {
-          "Ref": "Vpc"
-        }
-      },
-      "Type": "AWS::EC2::RouteTable"
     },
     "Vpc": {
       "Condition": "CreateVpcResources",
@@ -709,14 +1152,31 @@
       "Type": "AWS::EC2::VPC"
     }
   },
-    "Outputs" : {
+  "Outputs": {
     "JDBCConnectionString": {
-      "Description" : "JDBC connection string for database",
-      "Value" : { "Fn::Join": [ "", [ "jdbc:mysql://",
-                                      { "Fn::GetAtt": [ "PetClinicDB", "Endpoint.Address" ] },
-                                      ":",
-                                      { "Fn::GetAtt": [ "PetClinicDB", "Endpoint.Port" ] },
-                                      "/"]]}
+      "Description": "JDBC connection string for database",
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "jdbc:mysql://",
+            {
+              "Fn::GetAtt": [
+                "PetClinicDB",
+                "Endpoint.Address"
+              ]
+            },
+            ":",
+            {
+              "Fn::GetAtt": [
+                "PetClinicDB",
+                "Endpoint.Port"
+              ]
+            },
+            "/"
+          ]
+        ]
+      }
     }
   }
 }

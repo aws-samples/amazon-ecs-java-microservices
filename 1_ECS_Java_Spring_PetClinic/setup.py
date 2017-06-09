@@ -525,7 +525,7 @@ def setup(project_name='spring-petclinic-rest', service_list={'spring-petclinic-
 
     role_arns = create_roles()
     docker_login_config()
-    subnets = []
+    elb_subnets = []
     logger.info('Creating ECS Cluster')
     create_ecs_cluster(project_name)
     repository_uri = []
@@ -561,14 +561,17 @@ def setup(project_name='spring-petclinic-rest', service_list={'spring-petclinic-
             raise Exception("Failed to create cluster")
 
     for resource in resources['StackResources']:
-        if resource['ResourceType'] == 'AWS::EC2::SecurityGroup':
-            if resource['LogicalResourceId'] == 'EcsSecurityGroup':
-                ecs_security_group = resource['PhysicalResourceId']
-            if resource['LogicalResourceId'] == 'ElbSecurityGroup':
-                elb_security_group = resource['PhysicalResourceId']
-        if resource['ResourceType'] == 'AWS::EC2::Subnet':
-            subnets.append(resource['PhysicalResourceId'])
-        if resource['ResourceType'] == 'AWS::EC2::VPC':
+        if resource['LogicalResourceId'] == 'EcsSecurityGroup':
+            ecs_security_group = resource['PhysicalResourceId']
+        if resource['LogicalResourceId'] == 'ElbSecurityGroup':
+            elb_security_group = resource['PhysicalResourceId']
+        if resource['LogicalResourceId'] == 'PubELBSubnetAz1':
+            elb_subnets.append(resource['PhysicalResourceId'])
+        if resource['LogicalResourceId'] == 'PubELBSubnetAz2':
+            elb_subnets.append(resource['PhysicalResourceId'])
+        if resource['LogicalResourceId'] == 'PubELBSubnetAz3':
+            elb_subnets.append(resource['PhysicalResourceId'])
+        if resource['LogicalResourceId'] == 'Vpc':
             vpc_id = resource['PhysicalResourceId']
 
     stack_create_status = cf_client.describe_stacks(StackName=project_name)
@@ -581,7 +584,7 @@ def setup(project_name='spring-petclinic-rest', service_list={'spring-petclinic-
     # Create an ELBv2
     create_elb_response = elb_client.create_load_balancer(
         Name=elb_name,
-        Subnets=subnets,
+        Subnets=elb_subnets,
         SecurityGroups=[elb_security_group],
         Scheme='internet-facing',
         Tags=[

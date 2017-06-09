@@ -602,6 +602,26 @@
         "RetentionInDays": 14
       }
     },
+    "NAT": {
+      "Type": "AWS::EC2::NatGateway",
+      "Properties": {
+        "AllocationId": {
+          "Fn::GetAtt": [
+            "EIP",
+            "AllocationId"
+          ]
+        },
+        "SubnetId": {
+          "Ref": "PubELBSubnetAz1"
+        }
+      }
+    },
+    "EIP": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc"
+      }
+    },
     "PrivateDataRouteTable": {
       "Condition": "CreateVpcResources",
       "Properties": {
@@ -610,6 +630,18 @@
         }
       },
       "Type": "AWS::EC2::RouteTable"
+    },
+    "RoutePrivateData2Nat": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateDataRouteTable"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": {
+          "Ref": "NAT"
+        }
+      }
     },
     "PrivDataSubnet1RouteTableAssociation": {
       "Condition": "CreateVpcResources",
@@ -639,10 +671,10 @@
       "Condition": "CreateVpcResources",
       "Properties": {
         "RouteTableId": {
-          "Ref": "PrivateDataRouteTable"
+          "Ref": "PrivateAppRouteTable"
         },
         "SubnetId": {
-          "Ref": "PrivDataSubnetAz3"
+          "Ref": "PrivAppSubnetAz3"
         }
       },
       "Type": "AWS::EC2::SubnetRouteTableAssociation"
@@ -773,6 +805,18 @@
       },
       "Type": "AWS::EC2::RouteTable"
     },
+    "RoutePrivateApp2Nat": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateAppRouteTable"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "NatGatewayId": {
+          "Ref": "NAT"
+        }
+      }
+    },
     "PrivAppSubnet1RouteTableAssociation": {
       "Condition": "CreateVpcResources",
       "Properties": {
@@ -793,18 +837,6 @@
         },
         "SubnetId": {
           "Ref": "PrivAppSubnetAz2"
-        }
-      },
-      "Type": "AWS::EC2::SubnetRouteTableAssociation"
-    },
-    "PrivAppSubnet3RouteTableAssociation": {
-      "Condition": "CreateVpcResources",
-      "Properties": {
-        "RouteTableId": {
-          "Ref": "PrivateAppRouteTable"
-        },
-        "SubnetId": {
-          "Ref": "PrivAppSubnetAz3"
         }
       },
       "Type": "AWS::EC2::SubnetRouteTableAssociation"
