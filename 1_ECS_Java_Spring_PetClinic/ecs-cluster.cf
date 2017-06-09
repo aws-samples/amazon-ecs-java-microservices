@@ -242,10 +242,13 @@
         "DBSubnetGroupDescription": "Subnets available for the RDS DB Instance",
         "SubnetIds": [
           {
-            "Ref": "PubELBSubnetAz1"
+            "Ref": "PrivDataSubnetAz1"
           },
           {
-            "Ref": "PubELBSubnetAz2"
+            "Ref": "PrivDataSubnetAz2"
+          },
+          {
+            "Ref": "PrivDataSubnetAz3"
           }
         ]
       }
@@ -316,10 +319,13 @@
                   ",",
                   [
                     {
-                      "Ref": "PubELBSubnetAz1"
+                      "Ref": "PrivAppSubnetAz1"
                     },
                     {
-                      "Ref": "PubELBSubnetAz2"
+                      "Ref": "PrivAppSubnetAz2"
+                    },
+                    {
+                      "Ref": "PrivAppSubnetAz3"
                     }
                   ]
                 ]
@@ -621,7 +627,7 @@
       "Condition": "CreateVpcResources",
       "Properties": {
         "RouteTableId": {
-          "Ref": "PrivDatalicRouteTable"
+          "Ref": "PrivateDataRouteTable"
         },
         "SubnetId": {
           "Ref": "PrivDataSubnetAz2"
@@ -783,7 +789,7 @@
       "Condition": "CreateVpcResources",
       "Properties": {
         "RouteTableId": {
-          "Ref": "PrivApplicRouteTable"
+          "Ref": "PrivateAppRouteTable"
         },
         "SubnetId": {
           "Ref": "PrivAppSubnetAz2"
