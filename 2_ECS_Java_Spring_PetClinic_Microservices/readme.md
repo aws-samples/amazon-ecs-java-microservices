@@ -44,9 +44,9 @@ You will need to have the latest version of the AWS CLI and maven installed befo
 1. Run ```python setup.py -m setup -r <your region>```
 
 ## Test
- 1. ```curl <your endpoint from output above>\<endpoint>```
+ 1. ```curl <your endpoint from output above>/<endpoint>```
  
-supported endpoints are , \pet, \vet, \owner, \visit
+supported endpoints are /, /pet, /vet, /owner, /visit
 
 ## Clean up
 
