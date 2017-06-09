@@ -1,8 +1,0 @@
-version: '2'
-services:
-  spring-petclinic-rest-owner:
-    image: 730329488449.dkr.ecr.us-west-2.amazonaws.com/spring-petclinic-rest-owner
-    cpu_shares: 100
-    mem_limit: 524288000
-    ports:
-      - "8094:8080"

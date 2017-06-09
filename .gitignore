@@ -3,3 +3,5 @@
 .idea
 *.mvn
 */target*
+*/.springBeans
+*/.travis.yml
