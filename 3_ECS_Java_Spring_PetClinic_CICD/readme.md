@@ -13,7 +13,7 @@ For each AWS CodePipeline, there are 4 stages:
  - Approval
  - Deploy to ECS Cluster (AWS Cloudformation)
 
- ![pipeline](images/Pipeline.png)
+ ![pipeline](images/Pipeline.png =250x)
 
 We will be using the following AWS Services in an AWS Region of your choice, please make sure the region selected has the following AWS services:
 - Amazon S3
@@ -184,7 +184,7 @@ ParameterKey=SsmKMSKeyArn,ParameterValue=<arn_of_alias/aws/ssm> \
 --capabilities CAPABILITY_IAM
 
 ```
-![cloudformation complete](images/CloudformationComplete.png)
+![cloudformation complete](images/CloudformationComplete.png =250x)
 
 You need to provide the following parameters:
 - ```<AWS:AccountId>.dkr.ecr.<AWS::Region>.amazonaws.com/custombuild:latest```
@@ -200,7 +200,7 @@ Verify that you have:
  - 5 AWS CodePipeline
  - EC2 Parameter Store containing the 3 parameters for RDS
 
- ![SSM](images/ssm.png)
+ ![SSM](images/ssm.png =250x)
 
 
 #### Explore the ECS Cluster, ECR Repo
@@ -211,11 +211,11 @@ The CodePipelines are configured with *Manual Approval* step. Navigate to each C
 
 Also, note that we have encrypted the database password in the Parameter Store, only the EC2 Tasks with their Task IAM role can decrypt the password. The database password does not show up as *Environment Variables* in the ECS Console (see diagram below).
 
-![ECS Task Env](images/ecs-task.png)
+![ECS Task Env](images/ecs-task.png =250x)
 
 You can check the log of each microservice using Cloudwatch log. Navigate to the Cloudwatch Log Group ```<env-name>-EcsCluster``` and locate the commit hash and microservice name.
 
-![Cloudwatch Log](images/CWLog.png)
+![Cloudwatch Log](images/CWLog.png =250x)
 
 
 ## Deploy a change to one of the microservices
