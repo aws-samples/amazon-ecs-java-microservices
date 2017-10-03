@@ -145,7 +145,9 @@ git push --set-upstream origin master
 Using AWS Console, navigate to Cloudformation console and launch the following Cloudformation template from your ```<infra-automation-bucket-name>``` bucket.
 
 ```bash
-aws cloudformation create-stack --stack-name codebuild-custom --template-url https://s3-$region.amazonaws.com/$infra_bucket_name/codebuild-custom-container-ci.yaml --parameters ParameterKey=CodeCommitRepo,ParameterValue=codebuildcustomenv ParameterKey=ECRRepositoryName,ParameterValue=custombuild --capabilities CAPABILITY_IAM
+aws cloudformation create-stack --stack-name codebuild-custom --template-url \ https://s3-$region.amazonaws.com/$infra_bucket_name/codebuild-custom-container-ci.yaml \
+--parameters ParameterKey=CodeCommitRepo,ParameterValue=codebuildcustomenv \ ParameterKey=ECRRepositoryName,ParameterValue=custombuild \
+--capabilities CAPABILITY_IAM
 
 ```
 
