@@ -248,7 +248,7 @@ To delete the AWS resources:
 - Delete the 5 CodePipeline buckets (S3 console)
   - Cloudformation cannot delete an S3 bucket that is not empty. We will delete the bucket manually using AWS Console or AWS CLI
 ```
-	aws s3 rb s3://<infra-automation-bucket-name> --force
+	aws s3 rb s3://$infra_bucket_name --force
 ```
 - Delete the snapshot of RDS (RDS console -> snapshot)
 - Delete CodeCommit Repositories
