@@ -53,7 +53,8 @@ cd amazon-ecs-java-microservices-master/2_ECS_Java_Spring_PetClinic_Microservice
 
 for repo in spring-petclinic-rest-owner spring-petclinic-rest-pet spring-petclinic-rest-system spring-petclinic-rest-vet spring-petclinic-rest-visit
 do
-  export gitSSHUrl=$(aws codecommit create-repository --repository-name $repo | python -c "import sys, json; print json.load(sys.stdin)['repositoryMetadata']['cloneUrlSsh']")
+  export gitSSHUrl=$(aws codecommit create-repository --repository-name $repo | \
+  python -c "import sys, json; print json.load(sys.stdin)['repositoryMetadata']['cloneUrlSsh']")
   cd $repo
   git init
   git add .
@@ -133,7 +134,8 @@ To build the Docker image for our custom build environment, we are going to use 
 ```bash
 #cd amazon-ecs-java-microservices-master/2_ECS_Java_Spring_PetClinic_Microservices/codebuild-custom-env
 cd ../codebuild-custom-env
-export gitSSHUrl=$(aws codecommit create-repository --repository-name codebuildcustomenv | python -c "import sys, json; print json.load(sys.stdin)['repositoryMetadata']['cloneUrlSsh']")
+export gitSSHUrl=$(aws codecommit create-repository --repository-name codebuildcustomenv | \
+python -c "import sys, json; print json.load(sys.stdin)['repositoryMetadata']['cloneUrlSsh']")
 git init
 git add .
 git commit -am "First Commit"
@@ -145,8 +147,10 @@ git push --set-upstream origin master
 Using AWS Console, navigate to Cloudformation console and launch the following Cloudformation template from your ```<infra-automation-bucket-name>``` bucket.
 
 ```bash
-aws cloudformation create-stack --stack-name codebuild-custom --template-url \ https://s3-$region.amazonaws.com/$infra_bucket_name/codebuild-custom-container-ci.yaml \
---parameters ParameterKey=CodeCommitRepo,ParameterValue=codebuildcustomenv \ ParameterKey=ECRRepositoryName,ParameterValue=custombuild \
+aws cloudformation create-stack --stack-name codebuild-custom --template-url \
+https://s3-$region.amazonaws.com/$infra_bucket_name/codebuild-custom-container-ci.yaml \
+--parameters ParameterKey=CodeCommitRepo,ParameterValue=codebuildcustomenv \
+ParameterKey=ECRRepositoryName,ParameterValue=custombuild \
 --capabilities CAPABILITY_IAM
 
 ```
