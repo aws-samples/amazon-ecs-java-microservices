@@ -202,8 +202,8 @@ Resources:
 ### CodePipeline & Codebuild
   ArtifactBucket:
     Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Sub "${EnvironmentName}-${MicroServiceName}-codepipeline"
+    # Properties:
+    #   BucketName: !Sub "${EnvironmentName}-${MicroServiceName}-codepipeline"
       # Tags:
     DeletionPolicy: Retain
 

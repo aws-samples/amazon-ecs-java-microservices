@@ -41,9 +41,7 @@ In this step, we download the Java Spring PetClinic Microservices from github.co
 #Need to change to just grab it from the current project instead of the other folder.
 
 mkdir /tmp/scratch && cd /tmp/scratch
-curl https://codeload.github.com/awslabs/amazon-ecs-java-microservices/zip/master -o amazon-ecs-java-microservices-master.zip
-#TOFIX: git clone <awslabs github repo of this project>  instead?
-unzip  amazon-ecs-java-microservices-master.zip
+#TOFIX: git clone <awslabs github repo of this project>  
 
 ```
 
@@ -51,7 +49,8 @@ unzip  amazon-ecs-java-microservices-master.zip
 ```bash
 cd amazon-ecs-java-microservices-master/2_ECS_Java_Spring_PetClinic_Microservices
 
-for repo in spring-petclinic-rest-owner spring-petclinic-rest-pet spring-petclinic-rest-system spring-petclinic-rest-vet spring-petclinic-rest-visit
+for repo in spring-petclinic-rest-owner spring-petclinic-rest-pet \
+spring-petclinic-rest-system spring-petclinic-rest-vet spring-petclinic-rest-visit
 do
   export gitSSHUrl=$(aws codecommit create-repository --repository-name $repo | \
   python -c "import sys, json; print json.load(sys.stdin)['repositoryMetadata']['cloneUrlSsh']")
@@ -173,14 +172,16 @@ The above command will encrypt our database password using KMS key ```alias/aws/
 Using AWS Console, navigate to Cloudformation console and launch the following Cloudformation template from your ```$infra_bucket_name``` bucket. Make sure you specific the same database password for the ```DBPassword``` parameter as the one in ```/DeploymentConfig/Prod/DBPassword```.
 
 ```bash
+
+export mysshkey=<EC2 SSH Key>
+
 aws cloudformation create-stack --stack-name petclinic-cicd --template-url \
 https://s3-$region.amazonaws.com/$infra_bucket_name/master-ecs.yaml --parameters \
 ParameterKey=CodeBuildContainerSpringBootDocker,ParameterValue=$account_id.dkr.ecr.$region.amazonaws.com/custombuild:latest \
 ParameterKey=InfraAutomationCfnBucket,ParameterValue=$infra_bucket_name \
-ParameterKey=KeyPair,ParameterValue=<your sshkeypair> \
-ParameterKey=DBPassword,ParameterValue=\
-$(aws ssm get-parameters --name /DeploymentConfig/Prod/DBPassword --with-decryption --query Parameters[0].Value --region $region|sed -e 's/\"//g') \
-ParameterKey=SsmKMSKeyArn,ParameterValue=<arn_of_alias/aws/ssm> \
+ParameterKey=KeyPair,ParameterValue=$mysshkey \
+ParameterKey=DBPassword,ParameterValue=$(aws ssm get-parameters --name /DeploymentConfig/Prod/DBPassword --with-decryption --query 'Parameters[0].Value') \
+ParameterKey=SsmKMSKeyArn,ParameterValue=$(aws kms describe-key --key-id 'alias/aws/ssm' --query 'KeyMetadata.Arn') \
 --capabilities CAPABILITY_IAM
 
 ```
@@ -248,15 +249,14 @@ To delete the AWS resources:
 - Delete the 5 CodePipeline buckets (S3 console)
   - Cloudformation cannot delete an S3 bucket that is not empty. We will delete the bucket manually using AWS Console or AWS CLI
 ```
-	aws s3 rb s3://$infra_bucket_name --force
+	aws s3 rb s3://<infra-automation-bucket-name> --force
 ```
 - Delete the snapshot of RDS (RDS console -> snapshot)
 - Delete CodeCommit Repositories
 
 
 ```bash
-for repo in spring-petclinic-rest-owner spring-petclinic-rest-pet spring-petclinic-rest-system \
-spring-petclinic-rest-vet spring-petclinic-rest-visit
+for repo in spring-petclinic-rest-owner spring-petclinic-rest-pet spring-petclinic-rest-system spring-petclinic-rest-vet spring-petclinic-rest-visit
 do
   aws codecommit delete-repository --repository-name $repo
 done
