@@ -1,0 +1,375 @@
+Description: >
+  CICD for ECS Cluster using CodeCommit, Codepipeline and Codebuild.
+
+Parameters:
+  CodeBuildContainerSpringBootDocker:
+    Type: String
+  #source code repo
+  CodeCommitRepo:
+    Type: String
+  CodeCommitBranch:
+    Type: String
+    Default: master
+  EnvironmentName:
+    Type: String
+
+  #pet, owner, visit, system , vet
+  MicroServiceName:
+    Type: String
+
+  #pass down to service.yaml
+  CfnTemplateBucket:
+    Type: String
+  ECSCluster:
+    Type: String
+  VpcId:
+    Description: The VPC that the ECS cluster is deployed to
+    Type: AWS::EC2::VPC::Id
+  ALBListener:
+    Description: The Application Load Balancer listener to register with
+    Type: String
+  ECRRepositoryBaseName:
+    Description: the base name for the ECR Repo for the 5 microservices
+    Type: String
+    Default: spring-petclinic-rest
+  #RDS Database access
+  JDBCConnectionString:
+    Type: String
+  DBUsername:
+    Type: String
+  DBPasswordSSMKey:
+    Type: String
+    Default: "/DeploymentConfig/Prod/DBPassword"
+  SsmKMSKeyArn:
+    Type: String
+
+Resources:
+
+#### ECR Repositories
+  ECRRepository:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub "${ECRRepositoryBaseName}-${MicroServiceName}"
+    # DeletionPolicy: Retain
+    DeletionPolicy: Delete
+
+
+### IAM Permissions
+  CloudFormationExecutionRole:
+    Type: AWS::IAM::Role
+    DeletionPolicy: Delete
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "cloudformation.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - ecs:*
+                  - ecr:*
+                  - iam:*
+                  - elasticloadbalancing:CreateTargetGroup
+                  - elasticloadbalancing:DeleteTargetGroup
+                  - elasticloadbalancing:CreateRule
+                  - elasticloadbalancing:DeleteRule
+                  - elasticloadbalancing:DescribeRules
+                  - elasticloadbalancing:DescribeTargetHealth
+                  - elasticloadbalancing:DescribeTargetGroups
+                  - elasticloadbalancing:DescribeTargetGroupAttributes
+                  - elasticloadbalancing:ModifyRule
+                  - elasticloadbalancing:ModifyTargetGroup
+                  - elasticloadbalancing:ModifyTargetGroupAttributes
+                  - elasticloadbalancing:SetRulePriorities
+                  - cloudwatch:GetDashboard
+                  - cloudwatch:PutDashboard
+                  - cloudwatch:PutMetricData
+                  - cloudwatch:DeleteDashboards
+
+
+              - Resource:
+                  - !Sub arn:aws:s3:::${CfnTemplateBucket}
+                  - !Sub arn:aws:s3:::${CfnTemplateBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+
+  CodeBuildServiceRole:
+    Type: AWS::IAM::Role
+    DeletionPolicy: Delete
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "codebuild.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - ecr:GetAuthorizationToken
+              - Resource: !Sub arn:aws:s3:::${ArtifactBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:GetObjectVersion
+              - Resource:
+                - !Sub "arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ECRRepositoryBaseName}-${MicroServiceName}"
+                Effect: Allow
+                Action:
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:PutImage
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+              # to pull down base image like alpine-java8
+              - Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/*
+                Effect: Allow
+                Action:
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:BatchGetImage
+                  - ecr:BatchCheckLayerAvailability
+
+  CodePipelineServiceRole:
+    Type: AWS::IAM::Role
+    DeletionPolicy: Delete
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "codepipeline.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Resource:
+                  - !Sub arn:aws:s3:::${ArtifactBucket}/*
+                  - !Sub arn:aws:s3:::${CfnTemplateBucket}
+                  - !Sub arn:aws:s3:::${CfnTemplateBucket}/*
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:GetBucketVersioning
+
+              - Resource: "*"
+                Effect: Allow
+                Action:
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                  - cloudformation:*
+                  - iam:PassRole
+                  - codecommit:CancelUploadArchive
+                  - codecommit:GetBranch
+                  - codecommit:GetCommit
+                  - codecommit:GetUploadArchiveStatus
+                  - codecommit:UploadArchive
+
+
+### CodePipeline & Codebuild
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub "${EnvironmentName}-${MicroServiceName}-codepipeline"
+      # Tags:
+    DeletionPolicy: Retain
+
+  # ref: http://docs.aws.amazon.com/codebuild/latest/userguide/build-env-ref.html
+  # CODEBUILD_RESOLVED_SOURCE_VERSION : Commit ID
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    DependsOn: [ CodeBuildServiceRole, ECRRepository ]
+    Properties:
+      Name: !Sub "${EnvironmentName}-${MicroServiceName}"
+      Artifacts:
+        Type: "CODEPIPELINE"
+      Source:
+        Type: "CODEPIPELINE"
+        BuildSpec: |
+            version: 0.2
+            phases:
+              install:
+                commands:
+                  - nohup /usr/local/bin/dockerd --host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2375 --storage-driver=vfs&
+                  - timeout 15 sh -c "until docker info; do echo .; sleep 1; done"
+              pre_build:
+                commands:
+                  - $(aws ecr get-login --region $AWS_DEFAULT_REGION --no-include-email) | sed 's,https://,,g'
+                  - TAG="$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
+                  - export docker_registry_host=$(echo $REPOSITORY_URI | sed 's=/.*==g')
+              build:
+                commands:
+                  - echo Build started on `date`
+                  - mvn package docker:build -DpushImage -DdockerImageTags=${TAG} -Dmaven.test.skip=true
+              post_build:
+                commands:
+                  - printenv
+                  - echo Build completed on `date`
+                  - echo $(docker images)
+                  - printf '{"tag":"%s"}' $TAG > build.json
+                  - printf '{"Parameters":{"SsmKMSKeyArn":"%s","DBPasswordSSMKey":"%s","DBUsername":"%s","JDBCConnectionString":"%s"}}' $SsmKMSKeyArn ${DBPasswordSSMKey} ${DBUsername} ${JDBCConnectionString} > petclinic-service-configuration.json
+            artifacts:
+              files:
+                - build.json
+                - petclinic-service-configuration.json
+      Environment:
+        ComputeType: BUILD_GENERAL1_LARGE    # BUILD_GENERAL1_SMALL
+        Image: !Ref CodeBuildContainerSpringBootDocker
+        Type: "LINUX_CONTAINER"
+        PrivilegedMode: "true"
+        EnvironmentVariables:
+          - Name: JAVA_VERSION
+            Value: "8"
+          - Name: JAVA_HOME
+            Value: "/usr/lib/jvm/default-jvm"
+          - Name: AWS_DEFAULT_REGION
+            Value: !Ref AWS::Region
+          - Name: REPOSITORY_URI
+            Value: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepositoryBaseName}-${MicroServiceName}
+          - Name: JDBCConnectionString
+            Value: !Sub "${JDBCConnectionString}"
+          - Name: SsmKMSKeyArn
+            Value: !Sub "${SsmKMSKeyArn}"
+          - Name: DBUsername
+            Value: !Sub "${DBUsername}"
+          - Name: DBPasswordSSMKey
+            Value: !Sub "${DBPasswordSSMKey}"
+      ServiceRole: !Ref CodeBuildServiceRole
+
+  Pipeline:
+    Type: AWS::CodePipeline::Pipeline
+    DependsOn: [ CodePipelineServiceRole, CodeBuildProject ]
+    Properties:
+      RoleArn: !GetAtt CodePipelineServiceRole.Arn
+      RestartExecutionOnUpdate: False
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactBucket
+      Name:  !Sub "${EnvironmentName}-${MicroServiceName}-Pipeline"
+      # DisableInboundStageTransitions:
+      #   - Reason: "Testing - Do not build when create or update this CFN"
+      #     StageName: "Build"
+      Stages:
+        - Name: Source
+          Actions:
+            - Name: App
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: CodeCommit
+              Configuration:
+                RepositoryName: !Ref CodeCommitRepo
+                BranchName: !Ref CodeCommitBranch
+              OutputArtifacts:
+                - Name: App
+              RunOrder: 1
+            - Name: EcsServiceTemplate
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Version: 1
+                Provider: S3
+              OutputArtifacts:
+                - Name: CfnTemplate
+              RunOrder: 1
+              Configuration:
+                S3Bucket: !Ref CfnTemplateBucket
+                S3ObjectKey: petclinic-service.zip
+                PollForSourceChanges: false #if we update the ECS service template we dont trigger a whole new build/deploy
+        - Name: Build
+          Actions:
+            - Name: Build
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref CodeBuildProject
+              InputArtifacts:
+                - Name: App
+              OutputArtifacts:
+                - Name: BuildOutput
+              RunOrder: 1
+
+            - Name: Approval
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Version: 1
+                Provider: "Manual"
+              RunOrder: 2
+
+        - Name: Deploy
+          Actions:
+            - Name: Deploy
+              ActionTypeId:
+                Category: Deploy
+                Owner: AWS
+                Version: 1
+                Provider: CloudFormation
+              Configuration:
+                ChangeSetName: Deploy
+                ActionMode: CREATE_UPDATE
+                StackName: !Sub "${EnvironmentName}-PetClinic-${MicroServiceName}"
+                Capabilities: CAPABILITY_NAMED_IAM
+                TemplatePath: CfnTemplate::petclinic-service.yaml
+                TemplateConfiguration: BuildOutput::petclinic-service-configuration.json
+                RoleArn: !GetAtt CloudFormationExecutionRole.Arn
+                ParameterOverrides: !Sub |
+                  {
+                    "ECRImageTag" : { "Fn::GetParam" : [ "BuildOutput", "build.json", "tag" ] },
+                    "DesiredCount" : { "Fn::GetParam" : [ "App", "ecs-service-config.json", "count" ] },
+                    "ContainerMemorySize" : { "Fn::GetParam" : [ "App", "ecs-service-config.json", "memory" ] },
+                    "ContainerPort" : { "Fn::GetParam" : [ "App", "ecs-service-config.json", "port" ] },
+                    "Path" : { "Fn::GetParam" : [ "App", "ecs-service-config.json", "path" ] },
+                    "Priority" : { "Fn::GetParam" : [ "App", "ecs-service-config.json", "priority" ] },
+                    "VpcId": "${VpcId}",
+                    "ECSCluster": "${ECSCluster}",
+                    "ALBListener": "${ALBListener}",
+                    "ECRRepository": "${ECRRepository}"
+                  }
+              InputArtifacts:
+                - Name: App
+                - Name: CfnTemplate
+                - Name: BuildOutput
+              RunOrder: 1
+
+
+Outputs:
+  PipelineUrl:
+    Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${Pipeline}

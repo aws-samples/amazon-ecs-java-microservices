@@ -1,0 +1,164 @@
+Parameters:  
+  
+  ECSCluster:
+    Type: String
+  VpcId:
+    Type: String
+  Path:
+    Type: String
+  ALBListener:
+    Type: String
+  Priority:
+    Type: Number
+  DesiredCount:
+    Type: Number
+  ContainerMemorySize:
+    Type: Number
+  ContainerPort:
+    Type: Number
+  
+  #RDS Database access
+  JDBCConnectionString:
+    Type: String
+  DBUsername:
+    Type: String
+    Default: "PetDBAdmin"
+  DBPasswordSSMKey:
+    Type: String
+  SsmKMSKeyArn:
+    Type: String
+    
+  # ECR Repo name
+  ECRRepository:
+    Type: String
+  ECRImageTag:
+    Type: String
+
+Resources:
+  ECSServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "ecs.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceRole
+
+  TaskDefinitionServiceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      Path: /
+      AssumeRolePolicyDocument: |
+        {
+            "Statement": [{
+                "Effect": "Allow",
+                "Principal": { "Service": [ "ecs-tasks.amazonaws.com" ]},
+                "Action": [ "sts:AssumeRole" ]
+            }]
+        }
+      Policies:
+        - PolicyName: root
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              #ref: https://aws.amazon.com/blogs/mt/organize-parameters-by-hierarchy-tags-or-amazon-cloudwatch-events-with-amazon-ec2-systems-manager-parameter-store/
+              - Resource: !Sub arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/DeploymentConfig/Prod*
+                Effect: Allow
+                Action:
+                  - ssm:GetParameters
+              - Resource: !Ref SsmKMSKeyArn
+                Effect: Allow
+                Action:
+                  - kms:Decrypt
+
+####spring-petclinic
+  Service:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref ECSCluster
+      Role: !Ref ECSServiceRole
+      DesiredCount: !Ref DesiredCount
+      TaskDefinition: !Ref TaskDefinition
+      PlacementStrategies:
+        - Type: "spread"
+          Field: "attribute:ecs.availability-zone"
+      LoadBalancers:
+        - ContainerName: !Sub ${ECRRepository}
+          ContainerPort: !Ref ContainerPort
+          TargetGroupArn: !Ref TargetGroup
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Sub ${ECRRepository}
+      TaskRoleArn: !Ref TaskDefinitionServiceRole
+      ContainerDefinitions:
+        - Name: !Sub ${ECRRepository}
+          Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ECRRepository}:${ECRImageTag}
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-region: !Sub ${AWS::Region}
+              awslogs-group: !Ref ECSCluster
+              # awslogs-stream-prefix: !Sub ${ECRImageTag}-${ECRRepository}
+              awslogs-stream-prefix: !Sub ${ECRImageTag}
+          Essential: true
+          Memory: !Ref ContainerMemorySize
+          PortMappings:
+            - ContainerPort: !Ref ContainerPort
+          Environment:
+            - Name: SPRING_PROFILES_ACTIVE
+              Value: mysql
+            - Name: SPRING_DATASOURCE_URL
+              Value: !Ref JDBCConnectionString
+            - Name: SPRING_DATASOURCE_USERNAME
+              Value: !Ref DBUsername
+            - Name: DBPasswordSSMKey
+              Value: !Ref DBPasswordSSMKey
+            - Name: AWS_Region
+              Value: !Sub ${AWS::Region}
+            # - Name: AWS_XRAY_DAEMON_ADDRESS
+            #   Value: 172.17.0.1:2000  
+            # - Name: AWS_XRAY_CONTEXT_MISSING
+            #   Value: LOG_ERROR
+
+  TargetGroup:
+      Type: AWS::ElasticLoadBalancingV2::TargetGroup
+      Properties:
+          VpcId: !Ref VpcId
+          Port: 80
+          Protocol: HTTP
+          Matcher: 
+              HttpCode: 200-299
+          HealthCheckIntervalSeconds: 10
+          HealthCheckPath: /
+          HealthCheckProtocol: HTTP
+          HealthCheckTimeoutSeconds: 5
+          HealthyThresholdCount: 2
+  ListenerRule:
+      Type: AWS::ElasticLoadBalancingV2::ListenerRule
+      Properties:
+          ListenerArn: !Ref ALBListener
+          Priority: !Ref Priority
+          Conditions:
+              - Field: path-pattern
+                Values: 
+                  - !Ref Path
+          Actions:
+              - TargetGroupArn: !Ref TargetGroup
+                Type: forward
+ 
+
+Outputs:
+  EcsServiceName:
+    Description: ECS Service Name
+    Value: !GetAtt Service.Name
+
+
+
+

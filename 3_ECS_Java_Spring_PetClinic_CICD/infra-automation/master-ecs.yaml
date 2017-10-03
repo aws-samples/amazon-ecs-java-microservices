@@ -1,0 +1,158 @@
+Description: >
+    This template deploys a VPC, with a pair of public and private subnets spread
+    across two Availabilty Zones. It deploys an Internet Gateway, with a default
+    route on the public subnets. It deploys a pair of NAT Gateways (one in each AZ),
+    and default routes for them in the private subnets. 
+
+Parameters:
+
+    InfraAutomationCfnBucket:
+        Description: S3 bucket containing the cloudformation infrastructure automation code for ECS, cicd and petclinic microservices
+        Type: String
+    CodeBuildContainerSpringBootDocker:
+        Description: Codebuild custom container to run maven build for java, build docker container and push to ECR
+        Type: String
+    KeyPair:
+        Description: Amazon EC2 Key Pair for SSH
+        Type: "AWS::EC2::KeyPair::KeyName"
+
+    DBPassword:
+        Description: Database password - needed for Cloudformation to create RDS
+        Type: String
+        NoEcho: True    
+    SsmKMSKeyArn:
+        Type: String
+        Description: KMS Key for ECS Task to decrypt the DB password stored in SSM
+
+
+Resources:
+    # with default vpc - this is working
+    # ECSCluster:
+    #     Type: AWS::CloudFormation::Stack
+    #     Properties:
+    #         TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/ecs-cluster.yaml
+    #         Parameters:
+    #             EcsClusterName: !Sub "${AWS::StackName}-ECSCluster"
+    #             EcsInstanceType: "m4.xlarge"
+    #             AsgMaxSize: 2
+    #             VpcId: 'vpc-fd250e99'
+    #             SubnetIds: 'subnet-a618faef,subnet-03d82664'
+    #             VpcAvailabilityZones: 'ap-southeast-1a,ap-southeast-1b'
+    #             EnvironmentName: !Ref AWS::StackName
+    #             KeyName: "mysshkey"
+
+    #to create new vpc in 2AZ Reg.
+    ECSCluster:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+            TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/ecs-cluster-2az.yaml
+            Parameters:
+                EcsClusterName: !Sub ${AWS::StackName}-EcsCluster
+                EcsInstanceType: "m4.xlarge"
+                AsgMaxSize: 2
+                DBPassword: !Ref DBPassword
+                DBUsername: "PetDBAdmin"
+                EnvironmentName: !Ref AWS::StackName
+                KeyName: !Ref KeyPair
+            
+    ALB:
+        Type: AWS::CloudFormation::Stack
+        DependsOn: ECSCluster
+        Properties:
+            TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/alb.yaml
+            Parameters:
+                EnvironmentName: !Ref AWS::StackName
+                VpcId: !GetAtt ECSCluster.Outputs.VpcId
+                PubELBSubnets: !GetAtt ECSCluster.Outputs.PubELBSubnets
+                ElbSecurityGroup: !GetAtt ECSCluster.Outputs.ElbSecurityGroup
+
+    # 5 pipelines for
+    # spring-petclinic-rest-owner
+    # spring-petclinic-rest-pet
+    # spring-petclinic-rest-system
+    # spring-petclinic-rest-vet
+    # spring-petclinic-rest-visit
+    CodePipelineSystem:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+            TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            Parameters:
+                EnvironmentName: !Ref AWS::StackName
+                CodeCommitRepo: "spring-petclinic-rest-system"
+                MicroServiceName: "system"
+                CodeBuildContainerSpringBootDocker: !Ref CodeBuildContainerSpringBootDocker
+                VpcId: !GetAtt ECSCluster.Outputs.VpcId
+                ALBListener: !GetAtt ALB.Outputs.ALBListener
+                ECSCluster: !GetAtt ECSCluster.Outputs.ECSCluster
+                CfnTemplateBucket: !Ref InfraAutomationCfnBucket
+                JDBCConnectionString: !GetAtt ECSCluster.Outputs.JDBCConnectionString
+                DBUsername: !GetAtt ECSCluster.Outputs.DBUsername
+                SsmKMSKeyArn: !Ref SsmKMSKeyArn
+
+    CodePipelineOwner:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+            TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            Parameters:
+                EnvironmentName: !Ref AWS::StackName
+                CodeCommitRepo: "spring-petclinic-rest-owner"
+                MicroServiceName: "owner"
+                CodeBuildContainerSpringBootDocker: !Ref CodeBuildContainerSpringBootDocker
+                VpcId: !GetAtt ECSCluster.Outputs.VpcId
+                ALBListener: !GetAtt ALB.Outputs.ALBListener
+                ECSCluster: !GetAtt ECSCluster.Outputs.ECSCluster
+                CfnTemplateBucket: !Ref InfraAutomationCfnBucket
+                JDBCConnectionString: !GetAtt ECSCluster.Outputs.JDBCConnectionString
+                DBUsername: !GetAtt ECSCluster.Outputs.DBUsername
+                SsmKMSKeyArn: !Ref SsmKMSKeyArn
+
+    CodePipelinePet:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+            TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            Parameters:
+                EnvironmentName: !Ref AWS::StackName
+                CodeCommitRepo: "spring-petclinic-rest-pet"
+                MicroServiceName: "pet"
+                CodeBuildContainerSpringBootDocker: !Ref CodeBuildContainerSpringBootDocker
+                VpcId: !GetAtt ECSCluster.Outputs.VpcId
+                ALBListener: !GetAtt ALB.Outputs.ALBListener
+                ECSCluster: !GetAtt ECSCluster.Outputs.ECSCluster
+                CfnTemplateBucket: !Ref InfraAutomationCfnBucket
+                JDBCConnectionString: !GetAtt ECSCluster.Outputs.JDBCConnectionString
+                DBUsername: !GetAtt ECSCluster.Outputs.DBUsername
+                SsmKMSKeyArn: !Ref SsmKMSKeyArn
+
+    CodePipelineVet:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+            TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            Parameters:
+                EnvironmentName: !Ref AWS::StackName
+                CodeCommitRepo: "spring-petclinic-rest-vet"
+                MicroServiceName: "vet"
+                CodeBuildContainerSpringBootDocker: !Ref CodeBuildContainerSpringBootDocker
+                VpcId: !GetAtt ECSCluster.Outputs.VpcId
+                ALBListener: !GetAtt ALB.Outputs.ALBListener
+                ECSCluster: !GetAtt ECSCluster.Outputs.ECSCluster
+                CfnTemplateBucket: !Ref InfraAutomationCfnBucket
+                JDBCConnectionString: !GetAtt ECSCluster.Outputs.JDBCConnectionString
+                DBUsername: !GetAtt ECSCluster.Outputs.DBUsername
+                SsmKMSKeyArn: !Ref SsmKMSKeyArn
+
+    CodePipelineVisit:
+        Type: AWS::CloudFormation::Stack
+        Properties:
+            TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            Parameters:
+                EnvironmentName: !Ref AWS::StackName
+                CodeCommitRepo: "spring-petclinic-rest-visit"
+                MicroServiceName: "visit"
+                CodeBuildContainerSpringBootDocker: !Ref CodeBuildContainerSpringBootDocker
+                VpcId: !GetAtt ECSCluster.Outputs.VpcId
+                ALBListener: !GetAtt ALB.Outputs.ALBListener
+                ECSCluster: !GetAtt ECSCluster.Outputs.ECSCluster
+                CfnTemplateBucket: !Ref InfraAutomationCfnBucket
+                JDBCConnectionString: !GetAtt ECSCluster.Outputs.JDBCConnectionString
+                DBUsername: !GetAtt ECSCluster.Outputs.DBUsername
+                SsmKMSKeyArn: !Ref SsmKMSKeyArn

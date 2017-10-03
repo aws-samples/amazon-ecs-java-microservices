@@ -1,0 +1,63 @@
+
+
+Parameters:
+  EnvironmentName:
+    Type: String
+
+  PubELBSubnets:
+    Type: CommaDelimitedList
+  VpcId:
+    Type: String
+  ElbSecurityGroup:
+    Type: String
+
+Outputs:
+  LoadBalancer:
+    Description: Your ALB DNS URL
+    Value: !Join ['', ["http://",!GetAtt [LoadBalancer, DNSName]]]
+  ALBListener:
+    Description: ALB Port 80 http Listener
+    Value: !Ref LoadBalancerListener
+
+Resources:
+
+### ALB (ELB v2)
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${EnvironmentName}-ALB
+      Scheme: internet-facing
+      Subnets: !Ref PubELBSubnets
+      SecurityGroups:
+        - !Ref ElbSecurityGroup
+
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+      - Type: forward
+        TargetGroupArn: !Ref DefaultTargetGroup
+
+  # We define a default target group here, as this is a mandatory Parameters
+  # when creating an Application Load Balancer Listener. This is not used, instead
+  # a target group is created per-service.
+  DefaultTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${EnvironmentName}-Def-TG
+      VpcId: !Ref VpcId
+      Port: 80
+      Protocol: HTTP
+      Matcher:
+        HttpCode: 200-299
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: 30

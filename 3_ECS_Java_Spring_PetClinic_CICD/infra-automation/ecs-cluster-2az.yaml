@@ -1,0 +1,825 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Conditions:
+  CreateEC2LCWithKeyPair:
+    Fn::Not:
+    - Fn::Equals:
+      - Ref: KeyName
+      - ''
+  CreateEC2LCWithoutKeyPair:
+    Fn::Equals:
+    - Ref: KeyName
+    - ''
+  CreateSecurityGroup:
+    Fn::Equals:
+    - Ref: SecurityGroup
+    - ''
+  CreateVpcResources:
+    Fn::Equals:
+    - Ref: VpcId
+    - ''
+  UseSpecifiedVpcAvailabilityZones:
+    Fn::Not:
+    - Fn::Equals:
+      - Fn::Join:
+        - ''
+        - Ref: VpcAvailabilityZones
+      - ''
+Description: AWS CloudFormation template to create resources required to run tasks
+  on an ECS cluster for Regions with 2 AZ.
+Mappings:
+  VpcCidrs:
+    privappsubnet1:
+      cidr: 10.0.10.0/24
+    privappsubnet2:
+      cidr: 10.0.11.0/24
+    # privappsubnet3:
+    #   cidr: 10.0.12.0/24
+    privdatasubnet1:
+      cidr: 10.0.20.0/24
+    privdatasubnet2:
+      cidr: 10.0.21.0/24
+    # privdatasubnet3:
+    #   cidr: 10.0.22.0/24
+    pubelbsubnet1:
+      cidr: 10.0.0.0/24
+    pubelbsubnet2:
+      cidr: 10.0.1.0/24
+    # pubelbsubnet3:
+    #   cidr: 10.0.2.0/24
+    vpc:
+      cidr: 10.0.0.0/16
+
+  #tofix: update with latest region and ami
+  # http://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-optimized_AMI_launch_latest.html
+  AWSRegionToAMI:
+    ap-northeast-1:
+      AMIID: ami-b743bed1
+    ap-southeast-1:
+      AMIID: ami-9d1f7efe
+    ap-southeast-2:
+      AMIID: ami-c1a6bda2
+    eu-central-1:
+      AMIID: ami-0460cb6b
+    eu-west-1:
+      AMIID: ami-8fcc32f6
+    eu-west-2:
+      AMIID: ami-cb1101af
+    us-east-1:
+      AMIID: ami-9eb4b1e5
+    us-east-2:
+      AMIID: ami-1c002379
+    us-west-1:
+      AMIID: ami-4a2c192a
+    us-west-2:
+      AMIID: ami-1d668865
+    ca-central-1:
+      AMIID: ami-b677c9d2
+
+
+Outputs:
+  JDBCConnectionString:
+    Description: JDBC connection string for database
+    Value: !GetAtt SSMDataSourceURL.Value
+      # Fn::Join:
+      # - ''
+      # - - jdbc:mysql://
+      #   - Fn::GetAtt:
+      #     - PetClinicDB
+      #     - Endpoint.Address
+      #   - ':'
+      #   - Fn::GetAtt:
+      #     - PetClinicDB
+      #     - Endpoint.Port
+      #   - /
+  DBUsername:
+    Description: DB Username
+    Value : !GetAtt SSMDBUsername.Value
+  VpcId:
+    Description: VPC id for ALB
+    Value:
+      Fn::If:
+      - CreateVpcResources
+      - Ref: Vpc
+      - Ref: VpcId
+
+  ElbSecurityGroup:
+    Value: !GetAtt ElbSecurityGroup.GroupId
+
+  PubELBSubnets:
+    Value:
+      Fn::If:
+      - CreateVpcResources
+      - Fn::Join:
+        - ','
+        - - Ref: PubELBSubnetAz1
+          - Ref: PubELBSubnetAz2
+      - Ref: SubnetIds
+
+  # LoadBalancer:
+  #   Description: Your ALB DNS URL
+  #   Value: !Join ['', ["http://",!GetAtt [LoadBalancer, DNSName]]]
+  # ALBListener:
+  #   Description: ALB Port 80 http Listener
+  #   Value: !Ref LoadBalancerListener
+  ECSCluster:
+    Value: !Ref EcsCluster
+Parameters:
+  AsgMaxSize:
+    Default: '1'
+    Description: Maximum size and initial Desired Capacity of ECS Auto Scaling Group
+    Type: Number
+  EnvironmentName:
+    Type: String
+  DBPassword:
+    Default: ''
+    Description: Required - Password for database
+    Type: String
+  DBUsername:
+    Default: ''
+    Description: Required - Username of database
+    Type: String
+  EcsClusterName:
+    Default: spring-microservices
+    Description: ECS Cluster Name
+    Type: String
+  EcsInstanceType:
+    AllowedValues:
+    - t2.nano
+    - t2.micro
+    - t2.small
+    - t2.medium
+    - t2.large
+    - m3.medium
+    - m3.large
+    - m3.xlarge
+    - m3.2xlarge
+    - m4.large
+    - m4.xlarge
+    - m4.2xlarge
+    - m4.4xlarge
+    - m4.10xlarge
+    - c4.large
+    - c4.xlarge
+    - c4.2xlarge
+    - c4.4xlarge
+    - c4.8xlarge
+    - c3.large
+    - c3.xlarge
+    - c3.2xlarge
+    - c3.4xlarge
+    - c3.8xlarge
+    - p2.xlarge
+    - p2.8xlarge
+    - p2.16xlarge
+    - g2.2xlarge
+    - g2.16xlarge
+    - x1.16xlarge
+    - x1.32xlarge
+    - r3.large
+    - r3.xlarge
+    - r3.2xlarge
+    - r3.4xlarge
+    - r3.8xlarge
+    - r4.large
+    - r4.xlarge
+    - r4.2xlarge
+    - r4.4xlarge
+    - r4.8xlarge
+    - r4.16xlarge
+    - i2.xlarge
+    - i2.2xlarge
+    - i2.4xlarge
+    - i2.8xlarge
+    - g2.2xlarge
+    - g2.8xlarge
+    - d2.xlarge
+    - d2.2xlarge
+    - d2.4xlarge
+    - d2.8xlarge
+    ConstraintDescription: must be a valid EC2 instance type.
+    Default: t2.micro
+    Description: ECS EC2 instance type
+    Type: String
+  KeyName:
+    Default: ''
+    Description: Optional - Name of an existing EC2 KeyPair to enable SSH access to the ECS instances
+    Type: AWS::EC2::KeyPair::KeyName
+  SecurityGroup:
+    Default: ''
+    Description: Optional - Existing security group to associate the container instances.
+      Creates one by default.
+    Type: String
+  SourceCidr:
+    Default: 0.0.0.0/0
+    Description: Optional - CIDR/IP range for EcsPort - defaults to 0.0.0.0/0
+    Type: String
+  SubnetIds:
+    Default: ''
+    Description: Optional - Comma separated list of two (2) existing VPC Subnet Ids
+      where ECS instances will run.  Required if setting VpcId.
+    Type: CommaDelimitedList
+  VpcAvailabilityZones:
+    Default: ''
+    Description: Optional - Comma-delimited list of VPC availability zones in which
+      to create subnets.  Required if setting VpcId.
+    Type: CommaDelimitedList
+  VpcId:
+    AllowedPattern: ^(?:vpc-[0-9a-f]{8}|)$
+    ConstraintDescription: VPC Id must begin with 'vpc-' or leave blank to have a
+      new VPC created
+    Default: ''
+    Description: Optional - VPC Id of existing VPC. Leave blank to have a new VPC
+      created
+    Type: String
+Resources:
+  AttachGateway:
+    Condition: CreateVpcResources
+    Properties:
+      InternetGatewayId:
+        Ref: InternetGateway
+      VpcId:
+        Ref: Vpc
+    Type: AWS::EC2::VPCGatewayAttachment
+
+
+
+  CWLogGroup:
+    Type: "AWS::Logs::LogGroup"
+    Properties:
+      LogGroupName: !Sub ${EcsClusterName}
+      RetentionInDays: 7 # [1, 3, 5, 7, 14, 30, 60, 90, 120, 150, 180, 365, 400, 545, 731, 1827, 3653]
+
+  DBSecurityGroup:
+    Properties:
+      GroupDescription: Open database for access
+      SecurityGroupIngress:
+      - FromPort: '3306'
+        IpProtocol: tcp
+        SourceSecurityGroupId:
+          Ref: EcsSecurityGroup
+        ToPort: '3306'
+      VpcId:
+        Fn::If:
+        - CreateVpcResources
+        - Ref: Vpc
+        - Ref: VpcId
+    Type: AWS::EC2::SecurityGroup
+  EIP:
+    Properties:
+      Domain: vpc
+    Type: AWS::EC2::EIP
+  EcsCluster:
+    Properties:
+      ClusterName:
+        Ref: EcsClusterName
+    Type: AWS::ECS::Cluster
+  EcsInstanceAsg:
+    Properties:
+      DesiredCapacity:
+        Ref: AsgMaxSize
+      LaunchConfigurationName:
+        Fn::If:
+        - CreateEC2LCWithKeyPair
+        - Ref: EcsInstanceLc
+        - Ref: EcsInstanceLcWithoutKeyPair
+      MaxSize:
+        Ref: AsgMaxSize
+      MinSize: '1'
+      Tags:
+      - Key: Name
+        PropagateAtLaunch: 'true'
+        Value:
+          Fn::Join:
+          - ''
+          - - 'ECS Instance - '
+            - Ref: AWS::StackName
+      VPCZoneIdentifier:
+        Fn::If:
+        - CreateVpcResources
+        - - Fn::Join:
+            - ','
+            - - Ref: PrivAppSubnetAz1
+              - Ref: PrivAppSubnetAz2
+              # - Ref: PrivAppSubnetAz3
+        - Ref: SubnetIds
+    Type: AWS::AutoScaling::AutoScalingGroup
+  EcsInstanceLc:
+    Condition: CreateEC2LCWithKeyPair
+    Properties:
+      AssociatePublicIpAddress: true
+      IamInstanceProfile:
+        Ref: EcsInstanceProfile
+      ImageId:
+        Fn::FindInMap:
+        - AWSRegionToAMI
+        - Ref: AWS::Region
+        - AMIID
+      InstanceType:
+        Ref: EcsInstanceType
+      KeyName:
+        Ref: KeyName
+      SecurityGroups:
+        Fn::If:
+        - CreateSecurityGroup
+        - - Ref: EcsSecurityGroup
+        - - Ref: SecurityGroup
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - '#!/bin/bash
+
+              '
+            - echo ECS_CLUSTER=
+            - Ref: EcsClusterName
+            - ' >> /etc/ecs/ecs.config
+
+              '
+            - 'sudo yum update -y ecs-init
+
+              '
+    Type: AWS::AutoScaling::LaunchConfiguration
+  EcsInstanceLcWithoutKeyPair:
+    Condition: CreateEC2LCWithoutKeyPair
+    Properties:
+      AssociatePublicIpAddress: true
+      IamInstanceProfile:
+        Ref: EcsInstanceProfile
+      ImageId:
+        Fn::FindInMap:
+        - AWSRegionToAMI
+        - Ref: AWS::Region
+        - AMIID
+      InstanceType:
+        Ref: EcsInstanceType
+      SecurityGroups:
+        Fn::If:
+        - CreateSecurityGroup
+        - - Ref: EcsSecurityGroup
+        - - Ref: SecurityGroup
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - '#!/bin/bash
+
+              '
+            - echo ECS_CLUSTER=
+            - Ref: EcsClusterName
+            - ' >> /etc/ecs/ecs.config
+
+              '
+            - 'sudo yum update -y ecs-init
+
+              '
+    Type: AWS::AutoScaling::LaunchConfiguration
+  EcsInstancePolicy:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+        Version: '2012-10-17'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+      Path: /
+    Type: AWS::IAM::Role
+  EcsInstanceProfile:
+    Properties:
+      Path: /
+      Roles:
+      - Ref: EcsInstancePolicy
+    Type: AWS::IAM::InstanceProfile
+  EcsSecurityGroup:
+    Properties:
+      GroupDescription: ECS Security Group
+      VpcId:
+        Fn::If:
+        - CreateVpcResources
+        - Ref: Vpc
+        - Ref: VpcId
+    Type: AWS::EC2::SecurityGroup
+  EcsSecurityGroupALBports:
+    Properties:
+      FromPort: '31000'
+      GroupId:
+        Ref: EcsSecurityGroup
+      IpProtocol: tcp
+      SourceSecurityGroupId:
+        Ref: ElbSecurityGroup
+      ToPort: '61000'
+    Type: AWS::EC2::SecurityGroupIngress
+  EcsSecurityGroupECSports:
+    Properties:
+      FromPort: '31000'
+      GroupId:
+        Ref: EcsSecurityGroup
+      IpProtocol: tcp
+      SourceSecurityGroupId:
+        Ref: EcsSecurityGroup
+      ToPort: '61000'
+    Type: AWS::EC2::SecurityGroupIngress
+  EcsSecurityGroupSSHinbound:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      FromPort: '22'
+      GroupId:
+        Ref: EcsSecurityGroup
+      IpProtocol: tcp
+      ToPort: '22'
+    Type: AWS::EC2::SecurityGroupIngress
+  ElbSecurityGroup:
+    Properties:
+      GroupDescription: ELB Security Group
+      VpcId:
+        Fn::If:
+        - CreateVpcResources
+        - Ref: Vpc
+        - Ref: VpcId
+    Type: AWS::EC2::SecurityGroup
+  ElbSecurityGroupHTTPinbound:
+    Properties:
+      CidrIp: 0.0.0.0/0
+      FromPort: '80'
+      GroupId:
+        Ref: ElbSecurityGroup
+      IpProtocol: tcp
+      ToPort: '80'
+    Type: AWS::EC2::SecurityGroupIngress
+  InternetGateway:
+    Condition: CreateVpcResources
+    Type: AWS::EC2::InternetGateway
+  NAT:
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+        - EIP
+        - AllocationId
+      SubnetId:
+        Ref: PubELBSubnetAz1
+    Type: AWS::EC2::NatGateway
+  
+  SSMDataSourceURL:
+    Type: "AWS::SSM::Parameter"
+    DependsOn: PetClinicDB
+    Properties: 
+      Name: "/DeploymentConfig/Prod/DataSourceURL"
+      Description: MySQL Datasource URL
+      Type: String
+      Value:
+        Fn::Join:
+        - ''
+        - - jdbc:mysql://
+          - Fn::GetAtt:
+            - PetClinicDB
+            - Endpoint.Address
+          - ':'
+          - Fn::GetAtt:
+            - PetClinicDB
+            - Endpoint.Port
+          - /
+          - 'PetClinicDB'
+  SSMDBUsername:
+    Type: "AWS::SSM::Parameter"
+    DependsOn: PetClinicDB
+    Properties: 
+      Name: "/DeploymentConfig/Prod/DBUsername"
+      Description: MySQL DB Username
+      Type: String
+      Value: !Ref DBUsername
+
+  PetClinicDB:
+    Properties:
+      AllocatedStorage: '5'
+      DBInstanceClass: db.t2.medium
+      DBName: PetClinicDB
+      DBSubnetGroupName:
+        Ref: PetClinicSubnetGroup
+      Engine: MySQL
+      MasterUserPassword:
+        Ref: DBPassword
+      MasterUsername:
+        Ref: DBUsername
+      VPCSecurityGroups:
+      - Fn::GetAtt:
+        - DBSecurityGroup
+        - GroupId
+    Type: AWS::RDS::DBInstance
+  PetClinicSubnetGroup:
+    Properties:
+      DBSubnetGroupDescription: Subnets available for the RDS DB Instance
+      SubnetIds:
+      - Ref: PrivDataSubnetAz1
+      - Ref: PrivDataSubnetAz2
+      # - Ref: PrivDataSubnetAz3
+    Type: AWS::RDS::DBSubnetGroup
+  PrivAppSubnet1RouteTableAssociation:
+    Condition: CreateVpcResources
+    Properties:
+      RouteTableId:
+        Ref: PrivateAppRouteTable
+      SubnetId:
+        Ref: PrivAppSubnetAz1
+    Type: AWS::EC2::SubnetRouteTableAssociation
+  PrivAppSubnet2RouteTableAssociation:
+    Condition: CreateVpcResources
+    Properties:
+      RouteTableId:
+        Ref: PrivateAppRouteTable
+      SubnetId:
+        Ref: PrivAppSubnetAz2
+    Type: AWS::EC2::SubnetRouteTableAssociation
+  # PrivAppSubnet3RouteTableAssociation:
+  #   Condition: CreateVpcResources
+  #   Properties:
+  #     RouteTableId:
+  #       Ref: PrivateAppRouteTable
+  #     SubnetId:
+  #       Ref: PrivAppSubnetAz3
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  PrivAppSubnetAz1:
+    Condition: CreateVpcResources
+    Properties:
+      AvailabilityZone:
+        Fn::If:
+        - UseSpecifiedVpcAvailabilityZones
+        - Fn::Select:
+          - '0'
+          - Ref: VpcAvailabilityZones
+        - Fn::Select:
+          - '0'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      CidrBlock:
+        Fn::FindInMap:
+        - VpcCidrs
+        - privappsubnet1
+        - cidr
+      VpcId:
+        Ref: Vpc
+    Type: AWS::EC2::Subnet
+  PrivAppSubnetAz2:
+    Condition: CreateVpcResources
+    Properties:
+      AvailabilityZone:
+        Fn::If:
+        - UseSpecifiedVpcAvailabilityZones
+        - Fn::Select:
+          - '1'
+          - Ref: VpcAvailabilityZones
+        - Fn::Select:
+          - '1'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      CidrBlock:
+        Fn::FindInMap:
+        - VpcCidrs
+        - privappsubnet2
+        - cidr
+      VpcId:
+        Ref: Vpc
+    Type: AWS::EC2::Subnet
+  # PrivAppSubnetAz3:
+  #   Condition: CreateVpcResources
+  #   Properties:
+  #     AvailabilityZone:
+  #       Fn::If:
+  #       - UseSpecifiedVpcAvailabilityZones
+  #       - Fn::Select:
+  #         - '2'
+  #         - Ref: VpcAvailabilityZones
+  #       - Fn::Select:
+  #         - '2'
+  #         - Fn::GetAZs:
+  #             Ref: AWS::Region
+  #     CidrBlock:
+  #       Fn::FindInMap:
+  #       - VpcCidrs
+  #       - privappsubnet3
+  #       - cidr
+  #     VpcId:
+  #       Ref: Vpc
+  #   Type: AWS::EC2::Subnet
+  PrivDataSubnet1RouteTableAssociation:
+    Condition: CreateVpcResources
+    Properties:
+      RouteTableId:
+        Ref: PrivateDataRouteTable
+      SubnetId:
+        Ref: PrivDataSubnetAz1
+    Type: AWS::EC2::SubnetRouteTableAssociation
+  PrivDataSubnet2RouteTableAssociation:
+    Condition: CreateVpcResources
+    Properties:
+      RouteTableId:
+        Ref: PrivateDataRouteTable
+      SubnetId:
+        Ref: PrivDataSubnetAz2
+    Type: AWS::EC2::SubnetRouteTableAssociation
+  PrivDataSubnetAz1:
+    Condition: CreateVpcResources
+    Properties:
+      AvailabilityZone:
+        Fn::If:
+        - UseSpecifiedVpcAvailabilityZones
+        - Fn::Select:
+          - '0'
+          - Ref: VpcAvailabilityZones
+        - Fn::Select:
+          - '0'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      CidrBlock:
+        Fn::FindInMap:
+        - VpcCidrs
+        - privdatasubnet1
+        - cidr
+      VpcId:
+        Ref: Vpc
+    Type: AWS::EC2::Subnet
+  PrivDataSubnetAz2:
+    Condition: CreateVpcResources
+    Properties:
+      AvailabilityZone:
+        Fn::If:
+        - UseSpecifiedVpcAvailabilityZones
+        - Fn::Select:
+          - '1'
+          - Ref: VpcAvailabilityZones
+        - Fn::Select:
+          - '1'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      CidrBlock:
+        Fn::FindInMap:
+        - VpcCidrs
+        - privdatasubnet2
+        - cidr
+      VpcId:
+        Ref: Vpc
+    Type: AWS::EC2::Subnet
+  # PrivDataSubnetAz3:
+  #   Condition: CreateVpcResources
+  #   Properties:
+  #     AvailabilityZone:
+  #       Fn::If:
+  #       - UseSpecifiedVpcAvailabilityZones
+  #       - Fn::Select:
+  #         - '2'
+  #         - Ref: VpcAvailabilityZones
+  #       - Fn::Select:
+  #         - '2'
+  #         - Fn::GetAZs:
+  #             Ref: AWS::Region
+  #     CidrBlock:
+  #       Fn::FindInMap:
+  #       - VpcCidrs
+  #       - privdatasubnet3
+  #       - cidr
+  #     VpcId:
+  #       Ref: Vpc
+  #   Type: AWS::EC2::Subnet
+  PrivateAppRouteTable:
+    Condition: CreateVpcResources
+    Properties:
+      VpcId:
+        Ref: Vpc
+    Type: AWS::EC2::RouteTable
+  PrivateDataRouteTable:
+    Condition: CreateVpcResources
+    Properties:
+      VpcId:
+        Ref: Vpc
+    Type: AWS::EC2::RouteTable
+  PubELBSubnetAz1:
+    Condition: CreateVpcResources
+    Properties:
+      AvailabilityZone:
+        Fn::If:
+        - UseSpecifiedVpcAvailabilityZones
+        - Fn::Select:
+          - '0'
+          - Ref: VpcAvailabilityZones
+        - Fn::Select:
+          - '0'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      CidrBlock:
+        Fn::FindInMap:
+        - VpcCidrs
+        - pubelbsubnet1
+        - cidr
+      VpcId:
+        Ref: Vpc
+    Type: AWS::EC2::Subnet
+  PubELBSubnetAz2:
+    Condition: CreateVpcResources
+    Properties:
+      AvailabilityZone:
+        Fn::If:
+        - UseSpecifiedVpcAvailabilityZones
+        - Fn::Select:
+          - '1'
+          - Ref: VpcAvailabilityZones
+        - Fn::Select:
+          - '1'
+          - Fn::GetAZs:
+              Ref: AWS::Region
+      CidrBlock:
+        Fn::FindInMap:
+        - VpcCidrs
+        - pubelbsubnet2
+        - cidr
+      VpcId:
+        Ref: Vpc
+    Type: AWS::EC2::Subnet
+  # PubELBSubnetAz3:
+  #   Condition: CreateVpcResources
+  #   Properties:
+  #     AvailabilityZone:
+  #       Fn::If:
+  #       - UseSpecifiedVpcAvailabilityZones
+  #       - Fn::Select:
+  #         - '2'
+  #         - Ref: VpcAvailabilityZones
+  #       - Fn::Select:
+  #         - '2'
+  #         - Fn::GetAZs:
+  #             Ref: AWS::Region
+  #     CidrBlock:
+  #       Fn::FindInMap:
+  #       - VpcCidrs
+  #       - pubelbsubnet3
+  #       - cidr
+  #     VpcId:
+  #       Ref: Vpc
+  #   Type: AWS::EC2::Subnet
+  PubSubnet1RouteTableAssociation:
+    Condition: CreateVpcResources
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable
+      SubnetId:
+        Ref: PubELBSubnetAz1
+    Type: AWS::EC2::SubnetRouteTableAssociation
+  PubSubnet2RouteTableAssociation:
+    Condition: CreateVpcResources
+    Properties:
+      RouteTableId:
+        Ref: PublicRouteTable
+      SubnetId:
+        Ref: PubELBSubnetAz2
+    Type: AWS::EC2::SubnetRouteTableAssociation
+  # PubSubnet3RouteTableAssociation:
+  #   Condition: CreateVpcResources
+  #   Properties:
+  #     RouteTableId:
+  #       Ref: PublicRouteTable
+  #     SubnetId:
+  #       Ref: PubELBSubnetAz3
+  #   Type: AWS::EC2::SubnetRouteTableAssociation
+  PublicRouteTable:
+    Condition: CreateVpcResources
+    Properties:
+      VpcId:
+        Ref: Vpc
+    Type: AWS::EC2::RouteTable
+  PublicRouteViaIgw:
+    Condition: CreateVpcResources
+    DependsOn: AttachGateway
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: InternetGateway
+      RouteTableId:
+        Ref: PublicRouteTable
+    Type: AWS::EC2::Route
+  RoutePrivateApp2Nat:
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NAT
+      RouteTableId:
+        Ref: PrivateAppRouteTable
+    Type: AWS::EC2::Route
+  RoutePrivateData2Nat:
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NAT
+      RouteTableId:
+        Ref: PrivateDataRouteTable
+    Type: AWS::EC2::Route
+  Vpc:
+    Condition: CreateVpcResources
+    Properties:
+      CidrBlock:
+        Fn::FindInMap:
+        - VpcCidrs
+        - vpc
+        - cidr
+    Type: AWS::EC2::VPC

@@ -1,0 +1,7 @@
+{
+    "count": "2",
+    "memory": "1024",
+    "port": "8080",
+    "path": "/vet/*",
+    "priority": "3"
+}

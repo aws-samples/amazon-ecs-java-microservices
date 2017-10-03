@@ -1,0 +1,6 @@
+put these files
+in your codecommit repo [1].
+
+launch the ../infra-automation/codebuild-custom-container-ci.yaml 
+ with param: CodeCommitRepo : repo name of [1]
+             ECR Repo name for this codebuild custom environment [You need this as a param to ../infra-automation/master-ecs-yaml - CodeBuildContainerSpringBootDocker ]
