@@ -173,9 +173,13 @@ The above command will encrypt our database password using KMS key ```alias/aws/
 Using AWS Console, navigate to Cloudformation console and launch the following Cloudformation template from your ```$infra_bucket_name``` bucket. Make sure you specific the same database password for the ```DBPassword``` parameter as the one in ```/DeploymentConfig/Prod/DBPassword```.
 
 ```bash
-aws cloudformation create-stack --stack-name petclinic-cicd --template-url \ https://s3-$region.amazonaws.com/$infra_bucket_name/master-ecs.yaml --parameters\ ParameterKey=CodeBuildContainerSpringBootDocker,ParameterValue=$account_id.dkr.ecr.$region.amazonaws.com/custombuild:latest\ ParameterKey=InfraAutomationCfnBucket,ParameterValue=$infra_bucket_name\
+aws cloudformation create-stack --stack-name petclinic-cicd --template-url \
+https://s3-$region.amazonaws.com/$infra_bucket_name/master-ecs.yaml --parameters \
+ParameterKey=CodeBuildContainerSpringBootDocker,ParameterValue=$account_id.dkr.ecr.$region.amazonaws.com/custombuild:latest \
+ParameterKey=InfraAutomationCfnBucket,ParameterValue=$infra_bucket_name \
 ParameterKey=KeyPair,ParameterValue=<your sshkeypair> \
-ParameterKey=DBPassword,ParameterValue=$(aws ssm get-parameters --name /DeploymentConfig/Prod/DBPassword --with-decryption --query Parameters[0].Value --region $region|sed -e 's/\"//g') \
+ParameterKey=DBPassword,ParameterValue=\
+$(aws ssm get-parameters --name /DeploymentConfig/Prod/DBPassword --with-decryption --query Parameters[0].Value --region $region|sed -e 's/\"//g') \
 ParameterKey=SsmKMSKeyArn,ParameterValue=<arn_of_alias/aws/ssm> \
 --capabilities CAPABILITY_IAM
 
@@ -251,7 +255,8 @@ To delete the AWS resources:
 
 
 ```bash
-for repo in spring-petclinic-rest-owner spring-petclinic-rest-pet spring-petclinic-rest-system spring-petclinic-rest-vet spring-petclinic-rest-visit
+for repo in spring-petclinic-rest-owner spring-petclinic-rest-pet spring-petclinic-rest-system \
+spring-petclinic-rest-vet spring-petclinic-rest-visit
 do
   aws codecommit delete-repository --repository-name $repo
 done
