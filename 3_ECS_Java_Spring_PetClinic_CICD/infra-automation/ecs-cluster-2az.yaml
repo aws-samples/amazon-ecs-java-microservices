@@ -306,7 +306,7 @@ Resources:
   EcsInstanceLc:
     Condition: CreateEC2LCWithKeyPair
     Properties:
-      AssociatePublicIpAddress: true
+      AssociatePublicIpAddress: false
       IamInstanceProfile:
         Ref: EcsInstanceProfile
       ImageId:
@@ -342,7 +342,7 @@ Resources:
   EcsInstanceLcWithoutKeyPair:
     Condition: CreateEC2LCWithoutKeyPair
     Properties:
-      AssociatePublicIpAddress: true
+      AssociatePublicIpAddress: false
       IamInstanceProfile:
         Ref: EcsInstanceProfile
       ImageId:

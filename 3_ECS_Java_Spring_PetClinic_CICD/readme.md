@@ -210,8 +210,13 @@ Navigate to **EC2 Container Service** and click on *Repositories*, verify that y
 
 ## Create continuous delivery pipelines for our PetClinic microservices
 
+In this section, we will use AWS CloudFormation templates to create the ECS Cluster, ALB, RDS and 5 AWS CodePipeline. Take note that the EC2 instances of the ECS Cluster are in **private subnets**. To access them via SSH, you have to instantiate a bastion host in the public subnet.
+
+![ecs-vpc](images/ecs-vpc.png)
+
+
 #### Create EC2 Parameter store for RDS Database password
-Parameter Store, part of Amazon EC2 Systems Manager, provides a centralized, encrypted store to manage our RDS database connection information and password. As we cannot provision a "SecureString" Parameter using AWS CloudFormaion, we have to add our RDS database password using AWS CLI. Replace *mysqlpassword* with your own RDS password.
+Parameter Store, part of Amazon EC2 Systems Manager, provides a centralized, encrypted store to manage our RDS database connection information and password. As we cannot provision a "SecureString" Parameter using AWS CloudFormaion, we have to add our RDS database password using AWS CLI. Replace *mysqlpassword* with your own RDS password (make sure the password has 8-41 printable ASCII except "/", """, or "@").
 
 ```bash
 $   aws ssm put-parameter --name /DeploymentConfig/Prod/DBPassword --value <mysqlpassword> --type SecureString
@@ -273,15 +278,15 @@ Use the AWS Management Console to verify that you have:
 
 ![codepipeline-approval](images/codepipeline-approval.png)
 
-Once you have approved all 5 CodePipelines, 5 more CloudFormation stacks will be created for the ECS Services.
+Once you have approved all 5 CodePipelines, 5 more CloudFormation stacks will be created for the ECS Services. You can access the endpoints (/pet/, /owner/ etc) of the microservices using the DNS name of the ALB (Locate the DNS name of the ALB in the **Output** tab of the ALB CloudFormation Stack)
 
 ![ecs-services](images/ecs-services.png)
 
 
 ### Store secret securely in EC2 Parameter Store
-We had encrypted the database password in EC2 Parameter Store, only the ECS Tasks with their Task IAM role can decrypt the password. The database password does not show up as *Environment Variables* in the ECS Console. Instead, only the key (/DeploymentConfig/Prod/DBPassword) to the password in Parameter Store is shown (see diagram below).
+We had encrypted the database password in EC2 Parameter Store, only the ECS Tasks with their Task IAM role can decrypt the password. The database password does not show up as *Environment Variables* in the ECS Console. (Navigate to *ECS Console* -> Select *petclinic-cicd-EcsCluster* Cluster -> *Tasks* Tab ->Click on any Task and expand on the *Containers* section). Instead, only the key (/DeploymentConfig/Prod/DBPassword) to the password in Parameter Store is shown (see diagram below).
 
-(Navigate to *ECS Console* -> Select *petclinic-cicd-EcsCluster* Cluster -> *Tasks* Tab ->Click on any Task and expand on the *Containers* section)
+
 ![ECS Task Env](images/ecs-task.png)
 
 #### Central logging for PetClinic microservices
@@ -296,13 +301,13 @@ A benefit of microservices is that we can we scale each microservice independent
 
 ```bash
 $   cd ../spring-petclinic-rest-pet
-# edit ecs-service-config.json :change  "count": "2" to "count": "4"
-# vi ecs-service-config.json. 
+# Edit ecs-service-config.json :change  "count": "2" to "count": "4"
+$   vi ecs-service-config.json
 # Quit vi using :wq!  :-)
 
-#commit the change
+# Commit the change
 $   git commit -am "Update spring-petclinic-rest-pet microservice to 4 containers"
-#push the change to trigger the update of this microservice
+# Push the change to trigger the update of this microservice
 $   git -f push
 ```
 
@@ -315,7 +320,7 @@ This JSON file is used by AWS CodePipeline Parameter override when it performs a
 - Navigate to ECS Console and validate that the ECS Service for ```spring-petclinic-rest-pet``` is updated to 4
 
 
-## Cleanup
+## Clean up
 
 To delete the AWS resources, perform the tasks below in order:
 - Delete the 5 templates of ECS Services (CloudFormation Console)
