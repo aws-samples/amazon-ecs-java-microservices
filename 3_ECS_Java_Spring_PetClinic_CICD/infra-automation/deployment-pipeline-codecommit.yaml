@@ -246,7 +246,7 @@ Resources:
                 - build.json
                 - petclinic-service-configuration.json
       Environment:
-        ComputeType: BUILD_GENERAL1_LARGE    # BUILD_GENERAL1_SMALL
+        ComputeType: BUILD_GENERAL1_SMALL   #BUILD_GENERAL1_LARGE
         Image: !Ref CodeBuildContainerSpringBootDocker
         Type: "LINUX_CONTAINER"
         PrivilegedMode: "true"

@@ -167,7 +167,7 @@ Resources:
             #   files:
             #     - build.json
       Environment:
-        ComputeType: BUILD_GENERAL1_LARGE    # BUILD_GENERAL1_SMALL
+        ComputeType: BUILD_GENERAL1_SMALL     #BUILD_GENERAL1_LARGE
         Image: "aws/codebuild/docker:1.12.1"
         Type: "LINUX_CONTAINER"
         PrivilegedMode: "true"
@@ -192,9 +192,9 @@ Resources:
         Type: S3
         Location: !Ref ArtifactBucket
       Name:  !Sub "${CodeCommitRepo}-Pipeline"
-      DisableInboundStageTransitions:
-        - Reason: "Do not build when create or update this CFN"
-          StageName: "Build"
+      # DisableInboundStageTransitions:
+      #   - Reason: "Do not build when create or update this CFN"
+      #     StageName: "Build"
       Stages:
         - Name: Source
           Actions:

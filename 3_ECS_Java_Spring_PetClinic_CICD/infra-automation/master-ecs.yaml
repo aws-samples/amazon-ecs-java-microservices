@@ -4,6 +4,11 @@ Description: >
     route on the public subnets. It deploys a pair of NAT Gateways (one in each AZ),
     and default routes for them in the private subnets. 
 
+Conditions:
+  IsUSEast1:
+    Fn::Equals:
+    - !Ref AWS::Region
+    - "us-east-1"
 Parameters:
 
     InfraAutomationCfnBucket:
@@ -45,10 +50,15 @@ Resources:
     ECSCluster:
         Type: AWS::CloudFormation::Stack
         Properties:
-            TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/ecs-cluster-2az.yaml
+            # TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/ecs-cluster-2az.yaml
+            TemplateURL:
+              Fn::If: 
+              - IsUSEast1
+              - !Sub "https://s3.amazonaws.com/${InfraAutomationCfnBucket}/ecs-cluster-2az.yaml"
+              - !Sub "https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/ecs-cluster-2az.yaml"
             Parameters:
                 EcsClusterName: !Sub ${AWS::StackName}-EcsCluster
-                EcsInstanceType: "m4.xlarge"
+                EcsInstanceType: "t2.large"
                 AsgMaxSize: 2
                 DBPassword: !Ref DBPassword
                 DBUsername: "PetDBAdmin"
@@ -59,7 +69,12 @@ Resources:
         Type: AWS::CloudFormation::Stack
         DependsOn: ECSCluster
         Properties:
-            TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/alb.yaml
+            # TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/alb.yaml
+            TemplateURL:
+              Fn::If: 
+              - IsUSEast1
+              - !Sub "https://s3.amazonaws.com/${InfraAutomationCfnBucket}/alb.yaml"
+              - !Sub "https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/alb.yaml"
             Parameters:
                 EnvironmentName: !Ref AWS::StackName
                 VpcId: !GetAtt ECSCluster.Outputs.VpcId
@@ -75,7 +90,12 @@ Resources:
     CodePipelineSystem:
         Type: AWS::CloudFormation::Stack
         Properties:
-            TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            # TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            TemplateURL:
+              Fn::If: 
+              - IsUSEast1
+              - !Sub "https://s3.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml"
+              - !Sub "https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml"
             Parameters:
                 EnvironmentName: !Ref AWS::StackName
                 CodeCommitRepo: "spring-petclinic-rest-system"
@@ -92,7 +112,12 @@ Resources:
     CodePipelineOwner:
         Type: AWS::CloudFormation::Stack
         Properties:
-            TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            # TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            TemplateURL:
+              Fn::If: 
+              - IsUSEast1
+              - !Sub "https://s3.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml"
+              - !Sub "https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml"
             Parameters:
                 EnvironmentName: !Ref AWS::StackName
                 CodeCommitRepo: "spring-petclinic-rest-owner"
@@ -109,7 +134,12 @@ Resources:
     CodePipelinePet:
         Type: AWS::CloudFormation::Stack
         Properties:
-            TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            # TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            TemplateURL:
+              Fn::If: 
+              - IsUSEast1
+              - !Sub "https://s3.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml"
+              - !Sub "https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml"
             Parameters:
                 EnvironmentName: !Ref AWS::StackName
                 CodeCommitRepo: "spring-petclinic-rest-pet"
@@ -126,7 +156,12 @@ Resources:
     CodePipelineVet:
         Type: AWS::CloudFormation::Stack
         Properties:
-            TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            # TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            TemplateURL:
+              Fn::If: 
+              - IsUSEast1
+              - !Sub "https://s3.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml"
+              - !Sub "https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml"
             Parameters:
                 EnvironmentName: !Ref AWS::StackName
                 CodeCommitRepo: "spring-petclinic-rest-vet"
@@ -143,7 +178,12 @@ Resources:
     CodePipelineVisit:
         Type: AWS::CloudFormation::Stack
         Properties:
-            TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            # TemplateURL: !Sub https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml
+            TemplateURL:
+              Fn::If: 
+              - IsUSEast1
+              - !Sub "https://s3.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml"
+              - !Sub "https://s3-${AWS::Region}.amazonaws.com/${InfraAutomationCfnBucket}/deployment-pipeline-codecommit.yaml"
             Parameters:
                 EnvironmentName: !Ref AWS::StackName
                 CodeCommitRepo: "spring-petclinic-rest-visit"
