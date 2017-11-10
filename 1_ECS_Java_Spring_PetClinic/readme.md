@@ -27,10 +27,16 @@ To transform your existing Java Spring application into container you must compi
 
 
 1.  __Dependency Injection using Spring:__ We have modified the code to be separate interfaces into pet, owner, visit, etc as a first step towards microservice. We use Spring framework Repository annotation to inject the dependency in the specific path.  
-   
-2. __Create `Dockerfile`:__ This file is basically a build script that creates the container. The base container that the dockerfile starts from contains a specific version of java. We use the [docker-spotify](https://github.com/spotify/docker-maven-plugin) plugin to run the maven build and create artifacts . The result is a container image that is a reliable unit of deployment. The container can be run locally, or run on a remote server. It will run the same in both places. 
 
-3. __Provision `AWS resources`:__ the setup.py provisions the AWS resources such as ECS, ECR, IAM Roles, ALB, RDS MySQL, AWS networking resources.
+2. __Create `Dockerfile`:__ Docker containers are created by using base images. An image can be basic, with nothing but the operating-system fundamentals, or it can consist of a sophisticated pre-built application stack ready for launch.
+
+When building your images with docker, each action taken (i.e. a command executed such as apt-get install) forms a new layer on top of the previous one. These base images then can be used to create new containers. Dockerfile is a build script that contains these command use to create the container. At runtime Docker can build images automatically by reading the instructions from a Dockerfile.
+
+It generally a best practice to store your Dockerfile in the same place as the application source code. The Dockerfile is kept together with the source code in your git repo and at any time your build pipeline is able to rebuild any container version you may need.
+
+3. We use the [docker-spotify](https://github.com/spotify/docker-maven-plugin) plugin to run the maven build and create artifacts . The result is a container image that is a reliable unit of deployment. The container can be run locally, or run on a remote server. It will run the same in both places.
+
+4. __Provision `AWS resources`:__ the setup.py provisions the AWS resources such as ECS, ECR, IAM Roles, ALB, RDS MySQL, AWS networking resources.
 
 ## Prerequisites
 
@@ -42,9 +48,53 @@ You will need to have the latest version of the AWS CLI and maven installed befo
 ## Deployment
 
 1. Clone this repository - ```git clone <>```
-2. Run python ```setup.py -m setup -r <your region>```
+2. Inspect the [Dockerfile](src/main/docker/Dockerfile)
+```Dockerfile
+FROM frolvlad/alpine-oraclejdk8:slim
+VOLUME /tmp
+ADD spring-petclinic-rest-1.7.jar app.jar
+RUN sh -c 'touch /app.jar'
+ENV JAVA_OPTS=""
+ENTRYPOINT [ "sh", "-c", "java $JAVA_OPTS -Djava.security.egd=file:/dev/./urandom -jar /app.jar" ]
+```
 
-## Test 
+This Dockerfile uses the Java Alpine as the base image. Copy the jar file from your local folder into the image. And set the container ENTRYPOINT to run executes the jar file at startup.
+
+3. Inspect the [Maven pom file](./pom.xml)
+
+  NOTE: In this pom.xml file we are using dockerfile maven plugin. This plugin configures the actual maven to build to package, compile your Java app, build container image, and push the image to a registry.
+
+```xml
+  <plugin>
+      <groupId>com.spotify</groupId>
+      <artifactId>docker-maven-plugin</artifactId>
+      <version>0.4.13</version>
+      <configuration>
+          <imageName>${env.docker_registry_host}/${project.artifactId}</imageName>
+          <dockerDirectory>src/main/docker</dockerDirectory>
+          <useConfigFile>true</useConfigFile>
+          <registryUrl>${env.docker_registry_host}</registryUrl>
+          <!--dockerHost>https://${docker.registry.host}</dockerHost-->
+          <resources>
+              <resource>
+                  <targetPath>/</targetPath>
+                  <directory>${project.build.directory}</directory>
+                  <include>${project.build.finalName}.jar</include>
+              </resource>
+          </resources>
+          <forceTags>false</forceTags>
+          <imageTags>
+              <imageTag>${project.version}</imageTag>
+          </imageTags>
+      </configuration>
+  </plugin>
+```
+
+2. Run ```python setup.py -m setup -r <your region>```
+
+This setup script will create an ECR repository, load balancer, compile, build your project, upload the image to the ECR, deploy your infrastructure, and deploy the image into your infrastructure.
+
+## Test
 
 1. ```curl <your endpoint from output above>/<endpoint> ```
 
@@ -52,7 +102,7 @@ supported endpoints  are /, /pet, /vet, /owner, /visit
 
 ## Clean up
 
-1. Run python setup.py -m cleanup -r <your region>
+1. Run ```python setup.py -m cleanup -r <your region>```
 
 ## NextStep
 
