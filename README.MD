@@ -14,7 +14,7 @@ A high level architecture of PetClinic app is as follows,
 So lets get to it,
 1. [Part One: Moving existing Java Spring application to a container deployed using ECS](https://github.com/awslabs/aws-java-microservice-refarch/blob/master/1_ECS_Java_Spring_PetClinic)
 2. [Part Two: Breaking the monolith apart into microservices on ECS](https://github.com/awslabs/aws-java-microservice-refarch/tree/master/2_ECS_Java_Spring_PetClinic_Microservices)
-3. [Part Two: Create a continuous integration and continuous delivery](https://github.com/awslabs/aws-java-microservice-refarch/tree/master/2_ECS_Java_Spring_PetClinic_CICD)
+3. [Part Three: Create a continuous integration and continuous delivery](https://github.com/awslabs/aws-java-microservice-refarch/tree/master/3_ECS_Java_Spring_PetClinic_CICD)
 
 ## Prerequisites
 
