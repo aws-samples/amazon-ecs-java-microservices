@@ -23,5 +23,5 @@ You will need to have the latest version of the AWS CLI and maven installed befo
 1. [Installing the AWS CLI](http://docs.aws.amazon.com/cli/latest/userguide/installing.html)
 2. [Installing Maven](https://maven.apache.org/install.html)
 3. [Installing Docker](https://docs.docker.com/engine/installation/)
-4. [Installing Python](https://www.python.org/downloads/)
+4. [Installing Python](https://www.python.org/downloads/) (Python 2 only)
 5. [Installing JQ](https://stedolan.github.io/jq/download/)
