@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-//add comment
+//add comment for CodeGuru
 package org.springframework.samples.petclinic;
 
 import org.springframework.boot.SpringApplication;
